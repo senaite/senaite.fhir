@@ -27,6 +27,28 @@ SYSTEM_CODES = (
     ("SamplePoint", "http://snomed.info/sct"),
 )
 
+# Default NamingSystem ids (see converter.to_naming_system_url) for the
+# internal identifier ("usual") of each FHIR resource type. Internal ids are
+# always assigned by SENAITE after creation and may never be supplied by the
+# API consumer -- see converter.reject_internal_identifier.
+# https://fhir.senaite.org/identifiers.html
+INTERNAL_ID_SYSTEMS = (
+    ("Patient", "patient-id"),
+    ("Practitioner", "practitioner-id"),
+    ("Organization", "organization-id"),
+    ("Specimen", "sample-id"),
+)
+
+# Default NamingSystem ids for the external identifier ("secondary") of each
+# FHIR resource type, i.e. the id assigned by the API consumer's own system.
+# See converter.validate_external_identifier.
+EXTERNAL_ID_SYSTEMS = (
+    ("Patient", "patient-mrn"),
+    ("Practitioner", "practitioner-external-id"),
+    ("Organization", "organization-external-id"),
+    ("Specimen", "client-sample-id"),
+)
+
 UCUM_SYSTEM = "http://unitsofmeasure.org"
 
 SERVICE_REQUEST_STATUSES = (

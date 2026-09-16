@@ -34,5 +34,12 @@ class ResourceToContact(ResourceToPerson):
         data.update({
             "portal_type": "Contact",
             "parent_path": api.get_path(parent),
+            "external_id": self.get_external_id(),
         })
         return data
+
+    def get_external_id(self):
+        """Return the identifier assigned by the FHIR API consumer
+        """
+        identifier = self.resource.get_external_id()
+        return identifier.value if identifier else None
