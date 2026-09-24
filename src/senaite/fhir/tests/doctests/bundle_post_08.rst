@@ -259,6 +259,29 @@ The AnalysisRequest is created with the correct ClientSampleID:
     >>> sample.getClientSampleID()
     'EXT-CARDIAC-003'
 
+The transaction-response records the newly created Specimen by its FHIR id.
+When read, it carries SENAITE's newly assigned sample ID as the ``usual``
+identifier, ahead of the external client-sample ID. The consumer cannot supply
+the former, so it is resolved from the live sample rather than from the stored
+snapshot (see ``get_server_owned_elements``):
+
+    >>> response_specimen = [entry for entry in response["entry"]
+    ...                      if entry["fullUrl"].startswith("Specimen/")][0]
+    >>> specimen_id = response_specimen["fullUrl"].rsplit("/", 1)[1]
+    >>> browser.open("{}/Specimen/{}".format(fhir_url, specimen_id))
+    >>> stored_specimen = json.loads(browser.contents)
+    >>> stored_specimen["identifier"][0]["value"] == sample.getId()
+    True
+    >>> stored_specimen["identifier"][0]["use"]
+    u'usual'
+    >>> stored_specimen["identifier"][0]["system"] == (
+    ...     "https://fhir.senaite.org/NamingSystem/sample-id")
+    True
+    >>> stored_specimen["identifier"][1]["value"]
+    u'EXT-CARDIAC-003'
+    >>> stored_specimen["identifier"][1]["use"]
+    u'secondary'
+
 
 Success: no identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -290,4 +313,3 @@ The AnalysisRequest is created without a ClientSampleID:
     1
     >>> new_sample = [s for s in samples if not s.getClientSampleID()][0]
     >>> new_sample.getClientSampleID()
-

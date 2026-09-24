@@ -4,6 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #43 Test the internal sample ID of Specimens created from bundles
 - #41 Embed rendered Specimen resource in bundle response
 - #42 Add SENAITE-owned reference ranges to FHIR result Observations
 - #39 Fix FHIR Patient subject references in included bundles
