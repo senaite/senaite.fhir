@@ -100,6 +100,31 @@ def post(context, request, resource_type=None):
     # disable CSRF
     req.disable_csrf_protection()
 
+    records = req.get_request_data()
+    for record in records:
+        if record.get("resourceType") != "Bundle":
+            continue
+        for index, entry in enumerate(record.get("entry") or []):
+            resource = entry.get("resource") or {}
+            if "id" not in resource:
+                continue
+            request.response.setStatus(422)
+            return OperationOutcome({"issue": [{
+                "severity": "error",
+                "code": "invalid",
+                "details": {
+                    "coding": [{
+                        "system": "http://terminology.hl7.org/CodeSystem/operation-outcome",  # noqa: E501
+                        "code": "MSG_LOCAL_FAIL",
+                    }],
+                    "text": "Resource.id must not be supplied in a POST "
+                            "transaction entry. SENAITE generates all "
+                            "logical IDs; see identifiers.html#general-pattern.",  # noqa: E501
+                },
+                "expression": [
+                    "Bundle.entry[{}].resource.id".format(index)],
+            }]})
+
     # get the FHIR resources from the request
     resources = get_fhir_resources()
 
@@ -877,9 +902,6 @@ def get_fhir_resources():
                 entry_res = fapi.to_fhir_resource(entry)
                 if not entry_res:
                     continue
-                # assign the bundle so we can resolve references
-                # TODO this '_bundle' dance is a bit ugly
-                entry_res["_bundle"] = resource
                 # add to the resources list
                 resources.append(entry_res)
 

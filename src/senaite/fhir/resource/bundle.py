@@ -63,13 +63,18 @@ class Bundle(FHIRResource):
         entries = self.get("entry") or []
         resources = []
         for entry in entries:
-            # TODO fullUrl (e.g. urn:uuid:ddaf107d-a44d-4b7b-966b-65d82de495cc)
-            # full_url = entry.get("fullUrl")
             raw_resource = entry.get("resource")
 
             # TODO Only interested on resources resolving to our FHIRResource
             resource = to_fhir_resource(raw_resource, default=None)
             if resource:
+                # Use the entry fullUrl for internal resource lookup
+                full_url = entry.get("fullUrl") or ""
+                if full_url:
+                    resource["id"] = full_url.split("/")[-1].split(":")[-1]
+                # keep track of the bundle the resource belongs to, so that
+                # the references to its siblings can be resolved
+                resource["_bundle"] = self
                 resources.append(resource)
         # return the FHIR resources
         return resources

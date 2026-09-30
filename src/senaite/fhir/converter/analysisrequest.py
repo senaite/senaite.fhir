@@ -352,9 +352,7 @@ class ResourceToAnalysisRequest(object):
             raise ValueError("%r: No Contact for %s" % (self.resource, uid))
 
         # search the counterpart contact of the practitioner, by its external
-        # id (use=secondary) within the client (see ContactFinder). The finder
-        # resolves the client from the bundle the practitioner belongs to
-        sibling["_bundle"] = self.resource.get("_bundle")
+        # id (use=secondary) within the client (see ContactFinder)
         contact = fapi.find_object_for(sibling, default=None)
         if contact:
             return contact

@@ -263,7 +263,7 @@ a different family name:
     ...     for entry in data["entry"]:
     ...         resource = entry["resource"]
     ...         if resource["resourceType"] == "Practitioner":
-    ...             resource["id"] = unknown_id
+    ...             entry["fullUrl"] = "urn:uuid:{}".format(unknown_id)
     ...             resource["identifier"] = [{
     ...                 "use": "secondary",
     ...                 "value": external_id,
@@ -274,10 +274,8 @@ a different family name:
     ...         if resource["resourceType"] == "ServiceRequest":
     ...             reference = "Practitioner/{}".format(unknown_id)
     ...             resource["requester"]["reference"] = reference
-    ...             sr_id = resource["id"]
     ...     data = fapi.to_fhir_resource(data)
-    ...     service_request = data.first_entry("id", sr_id)
-    ...     service_request["_bundle"] = data
+    ...     service_request = data.first_entry("resourceType", "ServiceRequest")
     ...     converter = ResourceToAnalysisRequest(service_request)
     ...     return converter.get_requester()
 
@@ -398,7 +396,7 @@ Post the bundle with a `Practitioner` that has a FHIR id not known by SENAITE:
     >>> for entry in repeat["entry"]:
     ...     resource = entry["resource"]
     ...     if resource["resourceType"] == "Practitioner":
-    ...         resource["id"] = practitioner_id
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(practitioner_id)
     ...     if resource["resourceType"] == "ServiceRequest":
     ...         reference = "Practitioner/{}".format(practitioner_id)
     ...         resource["requester"]["reference"] = reference

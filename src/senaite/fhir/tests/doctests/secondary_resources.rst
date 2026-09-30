@@ -96,8 +96,15 @@ Load the bundle and keep its `Specimen` and `ServiceRequest` at hand:
     ...     return [e["resource"] for e in bundle["entry"]
     ...             if e["resource"]["resourceType"] == resource_type][0]
 
+    >>> def entry_id(resource_type):
+    ...     entry = [e for e in bundle["entry"]
+    ...              if e["resource"]["resourceType"] == resource_type][0]
+    ...     return entry["fullUrl"].split("/")[-1].split(":")[-1]
+
     >>> posted_specimen = entry_of("Specimen")
     >>> posted_sr = entry_of("ServiceRequest")
+    >>> posted_specimen_id = entry_id("Specimen")
+    >>> posted_sr_id = entry_id("ServiceRequest")
     >>> posted_client_sample_id = posted_specimen["identifier"][0]["value"]
     >>> posted_client_sample_id
     u'EXT-CARDIAC-002'
@@ -169,9 +176,9 @@ Post the bundle:
 The Specimen's FHIR id is linked to the sample, alongside the sample's own
 `ServiceRequest` id:
 
-    >>> fapi.get_fhir_id(sample, "Specimen") == posted_specimen["id"]
+    >>> fapi.get_fhir_id(sample, "Specimen") == posted_specimen_id
     True
-    >>> fapi.get_fhir_id(sample, "ServiceRequest") == posted_sr["id"]
+    >>> fapi.get_fhir_id(sample, "ServiceRequest") == posted_sr_id
     True
 
 Only the `Specimen` is snapshotted in the `resources` slot. The sample's
@@ -181,6 +188,13 @@ snapshot of it would shadow the live one:
     >>> storage = fapi.get_fhir_storage(sample)
     >>> sorted(storage.get("resources").keys())
     [u'Specimen']
+
+The snapshots keep the resource only, not the bundle it came with:
+
+    >>> "_bundle" in storage.get("data")
+    False
+    >>> "_bundle" in storage.get("resources").get("Specimen")
+    False
 
 
 Reading back a secondary resource
@@ -193,7 +207,7 @@ bundle:
     >>> stored = fapi.get_fhir_resource(sample, "Specimen")
     >>> stored.resourceType
     u'Specimen'
-    >>> stored.id == posted_specimen["id"]
+    >>> stored.id == posted_specimen_id
     True
     >>> stored["type"]["coding"][0]["code"]
     u'119364003'
@@ -207,7 +221,7 @@ from the sample. That one gets its identity from the sample and knows nothing
 about the collection details of the incoming Specimen:
 
     >>> synthesized = fapi.to_fhir_resource(sample, resource_type="Specimen")
-    >>> synthesized.id == posted_specimen["id"]
+    >>> synthesized.id == posted_specimen_id
     False
     >>> synthesized.id == str(fapi.get_uuid(api.get_uid(sample)))
     True
@@ -219,7 +233,7 @@ own FHIR id and through the `Specimen` listing:
 
     >>> browser.open("{}/Specimen/{}".format(fhir_url, stored.id))
     >>> served = json.loads(browser.contents)
-    >>> served["id"] == posted_specimen["id"]
+    >>> served["id"] == posted_specimen_id
     True
     >>> served["collection"]["bodySite"]["concept"]["coding"][0]["display"]
     u'Antecubital fossa'
@@ -228,7 +242,7 @@ own FHIR id and through the `Specimen` listing:
     >>> listing = json.loads(browser.contents)
     >>> listing["total"]
     1
-    >>> listing["entry"][0]["resource"]["id"] == posted_specimen["id"]
+    >>> listing["entry"][0]["resource"]["id"] == posted_specimen_id
     True
 
 
@@ -351,13 +365,50 @@ stale. Change the collection body site of the posted Specimen:
     >>> body_site = posted_specimen["collection"]["bodySite"]
     >>> body_site["concept"]["coding"][0]["display"] = "Dorsal hand vein"
 
-Rebuild the `ServiceRequest` out of the modified bundle. The bundle is
-attached to it under `_bundle`, which is how the endpoint lets a resource
-resolve its siblings:
+Rebuild the `ServiceRequest` out of the modified bundle. Every resource
+taken from a bundle knows the bundle it belongs to, under `_bundle`, so the
+references to its siblings can be resolved:
 
     >>> bundle_resource = fapi.to_fhir_resource(bundle)
-    >>> sr_resource = bundle_resource.first_entry("id", posted_sr["id"])
-    >>> sr_resource["_bundle"] = bundle_resource
+    >>> sr_resource = bundle_resource.first_entry("id", posted_sr_id)
+    >>> sr_resource["_bundle"] is bundle_resource
+    True
+
+So do its siblings, when looked up from it:
+
+    >>> specimen_resource = bundle_resource.first_entry(
+    ...     "id", posted_specimen_id)
+    >>> specimen_resource["_bundle"] is bundle_resource
+    True
+
+The bundle is not a FHIR element of the resource, so it is left out of its
+dict representation, the one stored in snapshots:
+
+    >>> "_bundle" in sr_resource.to_dict()
+    False
+    >>> sorted(sr_resource.to_dict().keys()) == sorted(
+    ...     key for key in sr_resource.keys() if key != "_bundle")
+    True
+
+Nor is the bundle copied along with a copy of the resource: the FHIR elements
+are copied, but the bundle is shared:
+
+    >>> import copy
+    >>> clone = copy.deepcopy(sr_resource)
+    >>> clone == sr_resource
+    True
+    >>> clone["_bundle"] is sr_resource["_bundle"]
+    True
+    >>> clone["subject"] is sr_resource["subject"]
+    False
+
+The copy is not re-initialized, so values assigned on initialization, such
+as the id of an `OperationOutcome`, are kept:
+
+    >>> from senaite.fhir.resource.operationoutcome import OperationOutcome
+    >>> outcome = OperationOutcome({"issue": [{"severity": "error"}]})
+    >>> copy.deepcopy(outcome)["id"] == outcome["id"]
+    True
 
 Update the sample with it:
 
@@ -405,8 +456,8 @@ A repeated reference is rejected the same way, as exceeding the upper bound of
 the cardinality:
 
     >>> posted_sr["specimen"] = [
-    ...     {"reference": "Specimen/%s" % posted_specimen["id"]},
-    ...     {"reference": "Specimen/%s" % posted_specimen["id"]},
+    ...     {"reference": "Specimen/%s" % posted_specimen_id},
+    ...     {"reference": "Specimen/%s" % posted_specimen_id},
     ... ]
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
     ...              content_type="application/json")
