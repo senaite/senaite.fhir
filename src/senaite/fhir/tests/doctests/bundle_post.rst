@@ -277,7 +277,6 @@ a different family name:
     ...             sr_id = resource["id"]
     ...     data = fapi.to_fhir_resource(data)
     ...     service_request = data.first_entry("id", sr_id)
-    ...     service_request["_bundle"] = data
     ...     converter = ResourceToAnalysisRequest(service_request)
     ...     return converter.get_requester()
 

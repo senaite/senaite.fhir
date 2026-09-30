@@ -182,6 +182,13 @@ snapshot of it would shadow the live one:
     >>> sorted(storage.get("resources").keys())
     [u'Specimen']
 
+The snapshots keep the resource only, not the bundle it came with:
+
+    >>> "_bundle" in storage.get("data")
+    False
+    >>> "_bundle" in storage.get("resources").get("Specimen")
+    False
+
 
 Reading back a secondary resource
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -351,13 +358,50 @@ stale. Change the collection body site of the posted Specimen:
     >>> body_site = posted_specimen["collection"]["bodySite"]
     >>> body_site["concept"]["coding"][0]["display"] = "Dorsal hand vein"
 
-Rebuild the `ServiceRequest` out of the modified bundle. The bundle is
-attached to it under `_bundle`, which is how the endpoint lets a resource
-resolve its siblings:
+Rebuild the `ServiceRequest` out of the modified bundle. Every resource
+taken from a bundle knows the bundle it belongs to, under `_bundle`, so the
+references to its siblings can be resolved:
 
     >>> bundle_resource = fapi.to_fhir_resource(bundle)
     >>> sr_resource = bundle_resource.first_entry("id", posted_sr["id"])
-    >>> sr_resource["_bundle"] = bundle_resource
+    >>> sr_resource["_bundle"] is bundle_resource
+    True
+
+So do its siblings, when looked up from it:
+
+    >>> specimen_resource = bundle_resource.first_entry(
+    ...     "id", posted_specimen["id"])
+    >>> specimen_resource["_bundle"] is bundle_resource
+    True
+
+The bundle is not a FHIR element of the resource, so it is left out of its
+dict representation, the one stored in snapshots:
+
+    >>> "_bundle" in sr_resource.to_dict()
+    False
+    >>> sorted(sr_resource.to_dict().keys()) == sorted(
+    ...     key for key in sr_resource.keys() if key != "_bundle")
+    True
+
+Nor is the bundle copied along with a copy of the resource: the FHIR elements
+are copied, but the bundle is shared:
+
+    >>> import copy
+    >>> clone = copy.deepcopy(sr_resource)
+    >>> clone == sr_resource
+    True
+    >>> clone["_bundle"] is sr_resource["_bundle"]
+    True
+    >>> clone["subject"] is sr_resource["subject"]
+    False
+
+The copy is not re-initialized, so values assigned on initialization, such
+as the id of an `OperationOutcome`, are kept:
+
+    >>> from senaite.fhir.resource.operationoutcome import OperationOutcome
+    >>> outcome = OperationOutcome({"issue": [{"severity": "error"}]})
+    >>> copy.deepcopy(outcome)["id"] == outcome["id"]
+    True
 
 Update the sample with it:
 

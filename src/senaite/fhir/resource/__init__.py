@@ -100,8 +100,31 @@ class FHIRResource(dict):
         identifiers = getattr(self, "identifier", [])
         return first_by(identifiers, use="usual")
 
+    def __deepcopy__(self, memo):
+        """Returns a deep copy of this resource. The internal keys (prefixed
+        with an underscore, e.g. `_bundle`) are not FHIR elements but context,
+        so they are shared with the copy instead of being copied
+        """
+        # skip __init__, as the default deep copy does, so values assigned on
+        # initialization (e.g. a new id) are not reset
+        klass = self.__class__
+        clone = klass.__new__(klass)
+        memo[id(self)] = clone
+        for key, value in self.items():
+            if not key.startswith("_"):
+                value = copy.deepcopy(value, memo)
+            dict.__setitem__(clone, key, value)
+        clone.__dict__.update(copy.deepcopy(self.__dict__, memo))
+        return clone
+
     def to_dict(self):
-        return copy.deepcopy(dict(self))
+        """Returns a copy of this resource as a plain dict, without the
+        internal keys (prefixed with an underscore, e.g. `_bundle`), as they
+        are not FHIR elements
+        """
+        data = dict([(key, value) for key, value in self.items()
+                     if not key.startswith("_")])
+        return copy.deepcopy(data)
 
     def _get(self, data_type, name, as_list=False, default=None):
         value = self.get(name, _marker)

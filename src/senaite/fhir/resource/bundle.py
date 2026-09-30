@@ -70,6 +70,9 @@ class Bundle(FHIRResource):
             # TODO Only interested on resources resolving to our FHIRResource
             resource = to_fhir_resource(raw_resource, default=None)
             if resource:
+                # keep track of the bundle the resource belongs to, so that
+                # the references to its siblings can be resolved
+                resource["_bundle"] = self
                 resources.append(resource)
         # return the FHIR resources
         return resources

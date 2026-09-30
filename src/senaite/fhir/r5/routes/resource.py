@@ -877,9 +877,6 @@ def get_fhir_resources():
                 entry_res = fapi.to_fhir_resource(entry)
                 if not entry_res:
                     continue
-                # assign the bundle so we can resolve references
-                # TODO this '_bundle' dance is a bit ugly
-                entry_res["_bundle"] = resource
                 # add to the resources list
                 resources.append(entry_res)
 
