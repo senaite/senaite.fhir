@@ -4,6 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #44 Let bundle entries know their bundle, and keep it out of snapshots
 - #40 Add external ID behavior for Contacts
 - #43 Test the internal sample ID of Specimens created from bundles
 - #41 Embed rendered Specimen resource in bundle response
