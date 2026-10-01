@@ -51,6 +51,10 @@
   <adapter for="senaite.fhir.interfaces.IPractitionerResource"
            factory=".contact.ResourceToContact"/>
 
+  <!-- Contact To FHIR Practitioner -->
+  <adapter for="senaite.core.interfaces.IContact"
+           factory=".contact.ContactToPractitioner"/>
+
   <!-- FHIR To AnalysisRequest -->
   <adapter for="senaite.fhir.interfaces.IServiceRequestResource"
            factory=".analysisrequest.ResourceToAnalysisRequest"/>

@@ -27,6 +27,14 @@ SYSTEM_CODES = (
     ("SamplePoint", "http://snomed.info/sct"),
 )
 
+# Index of the contacts catalog to search by, for each NamingSystem id (see
+# `converter.to_naming_system_url`) of the identifiers of a Practitioner
+# https://fhir.senaite.org/StructureDefinition-SenaitePractitioner.html
+PRACTITIONER_IDENTIFIER_INDEXES = (
+    ("practitioner-id", "getId"),
+    ("practitioner-external-id", "fhir_external_id"),
+)
+
 UCUM_SYSTEM = "http://unitsofmeasure.org"
 
 SERVICE_REQUEST_STATUSES = (

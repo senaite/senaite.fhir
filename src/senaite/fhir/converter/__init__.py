@@ -145,6 +145,57 @@ def to_content_address(address, default_type=POSTAL_ADDRESS):
     }
 
 
+def to_fhir_address(address, use=None):
+    """Converts the dict representation of an Address field of AT/DX contents
+    to a FHIR Address element, the counterpart of `to_content_address`.
+    Returns None when the address carries no content
+    """
+    if not address:
+        return None
+
+    def get_value(*keys):
+        # DX and AT types name some of the address keys differently
+        for key in keys:
+            value = api.safe_unicode(address.get(key) or u"").strip()
+            if value:
+                return value
+        return u""
+
+    lines = get_value("address")
+    city = get_value("city")
+    postal_code = get_value("zip")
+    state = get_value("subdivision1", "state")
+    district = get_value("subdivision2", "district")
+    country = get_value("country")
+    if not any([lines, city, postal_code, state, district, country]):
+        return None
+
+    # FHIR expects the ISO 3166 code of the country, rather than its name
+    if country:
+        found = geo.get_country(country, default=None)
+        country = api.safe_unicode(found.alpha_2) if found else country
+
+    data = {}
+    if use:
+        data["use"] = use
+    address_type = address.get("type")
+    if address_type in [PHYSICAL_ADDRESS, POSTAL_ADDRESS]:
+        data["type"] = address_type
+    if lines:
+        data["line"] = [lines]
+    if city:
+        data["city"] = city
+    if district:
+        data["district"] = district
+    if state:
+        data["state"] = state
+    if postal_code:
+        data["postalCode"] = postal_code
+    if country:
+        data["country"] = country
+    return data
+
+
 def get_telecom_elements(telecom, system, use=None):
     """Returns the element from the telecom (ContactPoint) provided for the
     given system and use
