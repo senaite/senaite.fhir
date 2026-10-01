@@ -12,9 +12,12 @@ from senaite.fhir import logger
 from senaite.fhir.api import find_object_for
 from senaite.fhir.config import DEFAULT_BUNDLE_PAGE_COUNT
 from senaite.fhir.config import INCLUDE_REFERENCE_FIELDS
+from senaite.core.catalog import CONTACT_CATALOG
 from senaite.fhir.config import INSTRUMENT_SERVICE_REQUEST_STATUSES
+from senaite.fhir.config import PRACTITIONER_IDENTIFIER_INDEXES
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_profile_url
+from senaite.fhir.converter import to_naming_system_url
 from senaite.fhir.finder.sampletype import SampleTypeFinder
 from senaite.fhir.interfaces import IBundleResource
 from senaite.fhir.r5 import add_route
@@ -84,6 +87,10 @@ def get(context, request, resource_type=None, uid=None):
     # Specimen listing: annotation-backed, no native SENAITE content type
     if resource_type == "Specimen" and not uid:
         return get_specimen_bundle(context, request)
+
+    # Practitioner search by identifier
+    if resource_type == "Practitioner" and not uid:
+        return get_practitioner_bundle(context, request)
 
     # all resources from the defined type
     portal_type = japi.resource_to_portal_type(resource_type)
@@ -394,6 +401,56 @@ def get_specimen_bundle(context, request):
     return ResultsBundleResource(bundle_data)
 
 
+def get_practitioner_bundle(context, request):
+    """Returns the Practitioners that match the `identifier` search parameter
+    as a FHIR searchset bundle.
+
+    The parameter takes the form `<system>|<value>`. The system is mandatory,
+    as the search matches on both the system and the value, and ignores the
+    use of the identifier. It is what the server relies on to evaluate the
+    `request.ifNoneExist` of Practitioner entries.
+
+    Both the internal identifier assigned by SENAITE and the one assigned by
+    the system of the API consumer are supported (see
+    `PRACTITIONER_IDENTIFIER_INDEXES`). An identifier from any other system
+    matches no Practitioner.
+    https://fhir.senaite.org/StructureDefinition-SenaitePractitioner.html
+    """
+    identifier = parse_identifier_param(request.form)
+    if isinstance(identifier, OperationOutcome):
+        return identifier
+    system, value = identifier
+
+    entries = []
+    indexes = dict([(to_naming_system_url(system_id), index)
+                    for system_id, index in PRACTITIONER_IDENTIFIER_INDEXES])
+    index = indexes.get(system)
+    if index:
+        query = {"portal_type": "Contact", index: value}
+        for brain in api.search(query, CONTACT_CATALOG):
+            contact = api.get_object(brain)
+            practitioner = fapi.get_fhir_resource(
+                contact, resource_type="Practitioner", default=None)
+            if not practitioner:
+                continue
+            entries.append({
+                "fullUrl": "Practitioner/{}".format(practitioner.id),
+                "resource": dict(practitioner),
+                "search": {"mode": "match"},
+            })
+
+    bundle_data = {
+        "resourceType": "Bundle",
+        "id": str(fapi.generate_UUID()),
+        "type": "searchset",
+        "total": len(entries),
+    }
+    if entries:
+        bundle_data["entry"] = entries
+
+    return ResultsBundleResource(bundle_data)
+
+
 def get_diagnostic_report_bundle(_context, request):
     """Handle GET /DiagnosticReport with _lastUpdated, _summary, _include.
 
@@ -649,6 +706,49 @@ def build_page_link(request, relation, offset, count):
         "relation": relation,
         "url": "%s?%s" % (request.URL, urlencode(params, doseq=True)),
     }
+
+
+def parse_identifier_param(params):
+    """Parse and validate the `identifier` token search parameter, in the
+    form `<system>|<value>`, where the system is mandatory
+
+    :param params: request.form-like mapping
+    :returns: a tuple (system, value), or an OperationOutcome
+    """
+    raw = params.get("identifier", "")
+    if not raw:
+        diagnostics = "The identifier search parameter is required"
+        return identifier_param_error("required", diagnostics)
+
+    if isinstance(raw, (list, tuple)):
+        diagnostics = "Only one identifier search parameter is supported"
+        return identifier_param_error("not-supported", diagnostics)
+
+    system, separator, value = raw.partition("|")
+    if not all([system, separator, value]):
+        diagnostics = (
+            "The identifier must be in the form <system>|<value>, the "
+            "system is mandatory")
+        return identifier_param_error("invalid", diagnostics)
+
+    return system, value
+
+
+def identifier_param_error(code, diagnostics):
+    """Returns a 400 OperationOutcome for an invalid identifier parameter
+    """
+    request = req.get_request()
+    request.response.setStatus(400)
+    issue = {
+        "severity": "error",
+        "code": code,
+        "details": {
+            "text": "Invalid identifier search parameter",
+        },
+        "diagnostics": diagnostics,
+        "expression": ["identifier"],
+    }
+    return OperationOutcome({"issue": [issue]})
 
 
 def parse_last_updated(value):
