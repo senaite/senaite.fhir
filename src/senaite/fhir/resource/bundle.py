@@ -82,3 +82,29 @@ class Bundle(FHIRResource):
         the value passed-in
         """
         return get_by_key(self.entry, key, value)
+
+    def first_raw_entry(self, key, value):
+        """Search the first RAW JSON entry (as submitted, keeping `fullUrl`
+        and `request`) whose embedded resource has the given key/value.
+
+        Unlike `entry`/`first_entry`, which rebuild each entry by converting
+        `entry["resource"]` through `to_fhir_resource`, this matches directly
+        against the raw `entry["resource"]` mapping, keeping entry-level data
+        such as `request.ifNoneExist` reachable.
+        """
+        for entry in self.get("entry") or []:
+            resource = entry.get("resource") or {}
+            if resource.get(key) == value:
+                return entry
+        return None
+
+    def get_request(self, resource):
+        """Returns the raw `request` dict (method/url/ifNoneExist/...)
+        declared on the given (already-extracted) FHIRResource's bundle
+        entry, or {} when the entry carries none.
+        https://hl7.org/fhir/R5/bundle-definitions.html#Bundle.entry.request
+        """
+        entry = self.first_raw_entry("id", resource.id)
+        if not entry:
+            return {}
+        return entry.get("request") or {}
