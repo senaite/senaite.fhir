@@ -5,7 +5,10 @@ from senaite.core.schema.addressfield import BILLING_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.converter import group_by
+from senaite.fhir.converter import reject_internal_identifier
 from senaite.fhir.converter import to_content_address
+from senaite.fhir.converter import to_naming_system_url
+from senaite.fhir.converter import validate_external_identifier
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IOrganizationResource
 from zope.component import adapter
@@ -20,6 +23,11 @@ class ResourceToOrganisation(object):
         self.resource = resource
 
     def to_content_dict(self):
+        reject_internal_identifier(self.resource, "Organization")
+        validate_external_identifier(
+            self.resource, "Organization",
+            to_naming_system_url("organization-external-id"))
+
         name = self.get_name()
         if not name:
             raise ValueError("%r: No Name" % self.resource)

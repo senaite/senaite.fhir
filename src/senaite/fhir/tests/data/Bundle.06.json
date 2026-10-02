@@ -19,6 +19,7 @@
       },
       "identifier" : [{
         "use" : "secondary",
+        "system" : "https://fhir.senaite.org/NamingSystem/patient-mrn",
         "value" : "MRN-48291034"
       }],
       "name" : [{
@@ -74,6 +75,7 @@
       },
       "identifier" : [{
         "use" : "secondary",
+        "system" : "https://fhir.senaite.org/NamingSystem/organization-external-id",
         "value" : "ORG-RMH-MEL"
       }],
       "active" : true,
@@ -123,6 +125,7 @@
       },
       "identifier" : [{
         "use" : "secondary",
+        "system" : "https://fhir.senaite.org/NamingSystem/practitioner-external-id",
         "value" : "PRACT-DR-RICCI"
       }],
       "active" : true,

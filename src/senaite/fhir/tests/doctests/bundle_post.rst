@@ -477,7 +477,10 @@ so it can only be matched by MRN (not by FHIR UID)::
     ...                  "use": "home"}],
     ...     "gender": "male",
     ...     "birthDate": "1970-01-01",
-    ...     "identifier": [{"use": "secondary", "value": "MRN-MANUAL"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "MRN-MANUAL"}],
     ... }
     >>> browser.post("{}/Patient".format(fhir_url), json.dumps(incoming),
     ...              content_type="application/json")

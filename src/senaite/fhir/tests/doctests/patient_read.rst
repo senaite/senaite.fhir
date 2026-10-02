@@ -139,6 +139,22 @@ reference are present in the FHIR response:
     >>> "123456" in values
     True
 
+The SENAITE ID and MRN use their fixed identifier systems. The MRN is an
+external, ``secondary`` identifier:
+
+    >>> internal_identifier = next(
+    ...     i for i in resource["identifier"] if i.get("use") == "usual")
+    >>> internal_identifier["system"]
+    u'https://fhir.senaite.org/NamingSystem/patient-id'
+    >>> mrn_identifier = next(
+    ...     i for i in resource["identifier"]
+    ...     if i.get("system") == (
+    ...         "https://fhir.senaite.org/NamingSystem/patient-mrn"))
+    >>> mrn_identifier["use"]
+    u'secondary'
+    >>> mrn_identifier["value"]
+    u'PAT-001'
+
 
 The FHIR resource ``id`` is a separate UUID generated on first fetch;
 it is not the same as the SENAITE object UID::
@@ -192,7 +208,10 @@ preserved against the object as a distinct FHIR id:
     ...     "name": [{"use": "official", "family": "Stone", "given": ["Mark"]}],
     ...     "gender": "male",
     ...     "birthDate": "1970-02-03",
-    ...     "identifier": [{"use": "secondary", "value": "PAT-FHIR"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "PAT-FHIR"}],
     ... })
     >>> created = fapi.create(incoming)
     >>> transaction.commit()

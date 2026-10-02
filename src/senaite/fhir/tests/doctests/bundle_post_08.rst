@@ -21,6 +21,11 @@ Tests the identifier validation layer in
    identifier with `use="secondary"` and `system="client-sample-id"`, the
    conversion succeeds and the identifier is used as the `ClientSampleID`.
 
+5. **Rejection of any identifier in ServiceRequest, regardless of `use`**:
+   `ServiceRequest` must not carry an identifier at all, so one with a `use`
+   other than `usual`/`secondary` (e.g. `official`), or no `use` at all, is
+   rejected too.
+
 Running this test from the buildout directory:
 
     bin/test test_doctests -t bundle_post_08
@@ -176,6 +181,41 @@ should not carry external identifiers (only Specimen should):
     >>> issue = outcome["issue"][0]
     >>> text = issue["details"]["text"]
     >>> "Cannot specify external identifier in ServiceRequest" in text
+    True
+
+No AnalysisRequest is created:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    0
+
+
+Rejection: ServiceRequest with an identifier under any other `use`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A `ServiceRequest` must not carry an identifier at all. An identifier with
+`use="official"` (neither `usual` nor `secondary`) is still rejected, just
+with a more generic message, since neither of the two specific checks above
+recognizes it:
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    >>> bundle = json.loads(raw)
+    >>> sr_entry = [e for e in bundle["entry"]
+    ...             if e["resource"]["resourceType"] == "ServiceRequest"][0]
+    >>> sr_entry["resource"]["identifier"] = [
+    ...     {
+    ...         "use": "official",
+    ...         "value": "SOME-OTHER-ID"
+    ...     }
+    ... ]
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> outcome = json.loads(browser.contents)
+    >>> issue = outcome["issue"][0]
+    >>> text = issue["details"]["text"]
+    >>> "Cannot specify any identifier in ServiceRequest" in text
     True
 
 No AnalysisRequest is created:
