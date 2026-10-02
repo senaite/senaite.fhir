@@ -8,6 +8,7 @@ from bika.lims.workflow import doActionFor as do_action_for
 from senaite.core.api import dtime
 from senaite.core.api import workflow as wapi
 from senaite.fhir import api as fapi
+from senaite.fhir import conditions
 from senaite.fhir import logger
 from senaite.fhir.api import find_object_for
 from senaite.fhir.config import DEFAULT_BUNDLE_PAGE_COUNT
@@ -112,19 +113,35 @@ def post(context, request, resource_type=None):
 
         # create or update the counterpart object
         try:
-            obj = find_object_for(resource)
-            if not obj:
-                obj = fapi.create(resource)
-                status = "201 Created"
+            if_none_exist = conditions.get_if_none_exist(resource)
+            if if_none_exist:
+                # Conditional create: evaluate the ifNoneExist precondition
+                # instead of the generic find-or-create flow below. A match
+                # discards the submitted body entirely (no fapi.update) --
+                # only the FHIR id used by this bundle is linked to it.
+                obj = conditions.find_by_if_none_exist(resource, if_none_exist)  # noqa: E501
+                if obj:
+                    fapi.link_fhir_resource(obj, resource)
+                    status = "200 OK"
+                else:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
             else:
-                obj = fapi.update(obj, resource)
-                status = "200 OK"
+                obj = find_object_for(resource)
+                if not obj:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
+                else:
+                    obj = fapi.update(obj, resource)
+                    status = "200 OK"
         except (ServiceRequestValidationError, ObservationValidationError) as e:  # noqa: E501
             transaction.abort()
             code = getattr(e, "code", "business-rule")
             status_code = 400
             if code == "conflict":
                 status_code = 409
+            elif code == "multiple-matches":
+                status_code = 412
 
             request.response.setStatus(status_code)
             issue = {

@@ -7,10 +7,13 @@ from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir import api as fapi
 from senaite.fhir.converter import group_by
+from senaite.fhir.converter import reject_internal_identifier
 from senaite.fhir.converter import to_content_address
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
 from senaite.fhir.converter import to_fhir_profile_url
+from senaite.fhir.converter import to_naming_system_url
+from senaite.fhir.converter import validate_external_identifier
 from senaite.fhir.interfaces import IContentToFHIR
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IPatientResource
@@ -67,8 +70,9 @@ class PatientToResource(object):
     def get_fhir_identifiers(self):
         # basic identifiers
         identifiers = [
-            to_fhir_id("context", self.patient.getId(), use="usual"),
-            to_fhir_id("mrn", self.patient.getMRN(), use="official")
+            to_fhir_id("patient-id", self.patient.getId(), use="usual"),
+            to_fhir_id(
+                "patient-mrn", self.patient.getMRN(), use="secondary")
         ]
         # secondary identifiers
         for key, value in self.patient.get_identifier_items():
@@ -235,6 +239,10 @@ class ResourceToPatient(object):
         self.resource = resource
 
     def to_content_dict(self):
+        reject_internal_identifier(self.resource, "Patient")
+        validate_external_identifier(
+            self.resource, "Patient", to_naming_system_url("patient-mrn"))
+
         # Medical Record Number
         mrn = self.get_mrn()
         if not mrn:

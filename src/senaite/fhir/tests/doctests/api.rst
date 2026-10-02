@@ -334,7 +334,9 @@ to_fhir_resource
     ...         ],
     ...     },
     ...     "identifier": [
-    ...         {"use": "secondary", "value": "PAT-999"},
+    ...         {"use": "secondary",
+    ...          "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...          "value": "PAT-999"},
     ...     ],
     ... }
     >>> resource = fapi.to_fhir_resource(data)
@@ -544,7 +546,10 @@ the object's ``uids`` mapping, so the two identities stay distinct::
     ...     ],
     ...     "gender": "female",
     ...     "birthDate": "1990-06-15",
-    ...     "identifier": [{"use": "secondary", "value": "PAT-NEW"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "PAT-NEW"}],
     ... })
     >>> created = fapi.create(fresh)
     >>> created
@@ -766,7 +771,10 @@ A brand-new resource produces a new content object::
     ...     "name": [{"use": "official", "family": "Mint", "given": ["Fresh"]}],
     ...     "gender": "male",
     ...     "birthDate": "2000-01-01",
-    ...     "identifier": [{"use": "secondary", "value": "PAT-MINT"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "PAT-MINT"}],
     ... })
     >>> minted = fapi.create(brand_new)
     >>> fapi.is_fhir_content(minted)
@@ -783,7 +791,10 @@ additional phone numbers field::
     ...     "name": [{"use": "official", "family": "Mobile", "given": ["Only"]}],
     ...     "gender": "female",
     ...     "birthDate": "1999-03-22",
-    ...     "identifier": [{"use": "secondary", "value": "PAT-MOBILE-ONLY"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "PAT-MOBILE-ONLY"}],
     ...     "telecom": [{
     ...         "system": "phone",
     ...         "value": "+1-345-555-0193",

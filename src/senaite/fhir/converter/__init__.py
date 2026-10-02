@@ -9,6 +9,7 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.config import FHIR_BASE_URL
+from senaite.fhir.exceptions import ServiceRequestValidationError
 from zope.deprecation import deprecate
 
 
@@ -43,6 +44,74 @@ def to_fhir_identifier(system_id, value, use=None):
     if use:
         data["use"] = use
     return data
+
+
+def reject_internal_identifier(resource, resource_name):
+    """Raise if the incoming resource carries an internal (usual)
+    identifier - these are assigned by SENAITE only after creation and
+    may never be supplied by the API consumer
+    """
+    object_id = resource.get_object_id()
+    if object_id:
+        msg = (
+            "Cannot specify usual identifier externally in incoming "
+            "{}:{}"
+        ).format(resource_name, object_id.value)
+        raise ServiceRequestValidationError(
+            msg,
+            expression=["{}.identifier".format(resource_name)],
+            code="invalid",
+        )
+
+
+def validate_external_identifier(resource, resource_name, valid_system=None):
+    """Raise if the incoming resource's external (secondary) identifier,
+    if any, has no system or a system other than `valid_system`.
+
+    Pass `valid_system=None` when the resource must not carry an external
+    identifier at all (e.g. ServiceRequest)
+    """
+    external_id = resource.get_external_id()
+    if external_id:
+        if valid_system is None:
+            msg = (
+                "Cannot specify external identifier in "
+                "{}:{}"
+            ).format(resource_name, external_id.value)
+            raise ServiceRequestValidationError(
+                msg,
+                expression=["{}.identifier".format(resource_name)],
+                code="invalid",
+            )
+        if external_id.system != valid_system:
+            msg = (
+                "Unsupported identifier system in {}: {}"
+            ).format(resource_name, external_id.system)
+            raise ServiceRequestValidationError(
+                msg,
+                expression=["{}.identifier".format(resource_name)],
+                code="invalid",
+            )
+
+
+def reject_any_identifier(resource, resource_name):
+    """Raise if the incoming resource carries any identifier at all,
+    regardless of its `use`.
+
+    `reject_internal_identifier`/`validate_external_identifier` only
+    recognize `use="usual"`/`use="secondary"`; this is the backstop for a
+    resource that must not carry an identifier under any `use` (e.g. an
+    identifier with `use="official"`, or none at all), such as
+    ServiceRequest.
+    """
+    identifiers = getattr(resource, "identifier", None)
+    if identifiers:
+        msg = "Cannot specify any identifier in {}".format(resource_name)
+        raise ServiceRequestValidationError(
+            msg,
+            expression=["{}.identifier".format(resource_name)],
+            code="invalid",
+        )
 
 
 def to_fhir_profile_url(resource_type):
