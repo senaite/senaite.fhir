@@ -4,6 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #47 Add support for ifNoneExist conditional create for Bundle
 - #46 Ensure consistent Bundle identifier handling
 - #44 Let bundle entries know their bundle, and keep it out of snapshots
 - #40 Add external ID behavior for Contacts
