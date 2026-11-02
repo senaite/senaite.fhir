@@ -173,11 +173,11 @@ Sample ID it did supply:
     >>> response_specimen["status"]
     u'available'
 
-The FHIR id of the stored Specimen is the one carried by the bundle:
+The FHIR id of the stored Specimen is derived from the entry's fullUrl:
 
-    >>> bundle_specimen = [e["resource"] for e in bundle["entry"]
+    >>> bundle_specimen = [e for e in bundle["entry"]
     ...                    if e["resource"]["resourceType"] == "Specimen"][0]
-    >>> stored_fhir_id = bundle_specimen["id"]
+    >>> stored_fhir_id = bundle_specimen["fullUrl"].split(":")[-1]
     >>> specimen_entries[0]["fullUrl"] == "Specimen/{}".format(stored_fhir_id)
     True
 

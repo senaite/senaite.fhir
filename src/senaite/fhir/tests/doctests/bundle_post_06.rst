@@ -106,12 +106,11 @@ Find and return the ServiceRequest entry dict from the bundle:
     ...             return entry
     ...     raise KeyError("No ServiceRequest entry in bundle")
 
-Replace the ServiceRequest's UUID (both resource id and entry fullUrl) so
-each scenario creates a distinct object rather than updating a previous one:
+Replace the ServiceRequest's entry fullUrl so each scenario creates a distinct
+object rather than updating a previous one:
 
     >>> def set_sr_id(bundle, new_id):
     ...     entry = get_sr_entry(bundle)
-    ...     entry["resource"]["id"] = new_id
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
 
 Shorthand for the LOINC orderDetail parameter structure:

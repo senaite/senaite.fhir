@@ -9,7 +9,6 @@
     "fullUrl" : "urn:uuid:ddaf107d-a44d-4b7b-966b-65d82de495cc",
     "resource" : {
       "resourceType" : "Patient",
-      "id" : "ddaf107d-a44d-4b7b-966b-65d82de495cc",
       "meta" : {
         "profile" : ["https://fhir.senaite.org/StructureDefinition/SenaitePatient"]
       },
@@ -65,7 +64,6 @@
     "fullUrl" : "urn:uuid:6c248ba7-a4c4-4606-b4a0-efbff71fb902",
     "resource" : {
       "resourceType" : "Organization",
-      "id" : "6c248ba7-a4c4-4606-b4a0-efbff71fb902",
       "meta" : {
         "profile" : ["https://fhir.senaite.org/StructureDefinition/SenaiteOrganization"]
       },
@@ -115,7 +113,6 @@
     "fullUrl" : "urn:uuid:ab1ecb26-1942-4855-a32d-ee82c62e5327",
     "resource" : {
       "resourceType" : "Practitioner",
-      "id" : "ab1ecb26-1942-4855-a32d-ee82c62e5327",
       "meta" : {
         "profile" : ["https://fhir.senaite.org/StructureDefinition/SenaitePractitioner"]
       },
@@ -167,7 +164,6 @@
     "fullUrl" : "urn:uuid:9b8a478f-fd26-4765-8f09-3b3ea0ec6637",
     "resource" : {
       "resourceType" : "Specimen",
-      "id" : "9b8a478f-fd26-4765-8f09-3b3ea0ec6637",
       "meta" : {
         "profile" : ["https://fhir.senaite.org/StructureDefinition/SenaiteSpecimen"]
       },
@@ -217,7 +213,6 @@
     "fullUrl" : "urn:uuid:2d6bb491-6b87-4558-a07f-2d181831e298",
     "resource" : {
       "resourceType" : "ServiceRequest",
-      "id" : "2d6bb491-6b87-4558-a07f-2d181831e298",
       "meta" : {
         "profile" : ["https://fhir.senaite.org/StructureDefinition/SenaiteServiceRequest"]
       },
