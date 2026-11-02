@@ -104,6 +104,7 @@ def post(context, request, resource_type=None):
     resources = get_fhir_resources()
 
     entries = []
+    entries_by_request_index = {}
     for resource in resources:
 
         # Skip if creation or update of this resource is not supported
@@ -167,14 +168,21 @@ def post(context, request, resource_type=None):
                 "lastModified": modified,
             }
         }
-        entries.append(entry)
+        request_index = resource.get("entry_index")
+        if request_index is None:
+            entries.append(entry)
+        else:
+            entries_by_request_index[request_index] = entry
 
         # If the resource is a ServiceRequest, process any Specimen resources
         if resource.resourceType == "ServiceRequest" and obj:
             specimen_entries = process_bundle_specimen(
                 resource, obj, status, modified
             )
-            entries.extend(specimen_entries)
+            for specimen, specimen_entry in specimen_entries:
+                entries_by_request_index[
+                    specimen["entry_index"]
+                ] = specimen_entry
 
         # An Observation carries a result for an existing Analysis; once
         # applied (see ResourceToAnalysisResult), submit it
@@ -188,6 +196,11 @@ def post(context, request, resource_type=None):
             if resource.text:
                 obs["text"] = resource.text
             return obs
+
+    # Restore request order after dependency processing
+    entries.extend(
+        entry for _, entry in sorted(entries_by_request_index.items())
+    )
 
     # create the BundleResponse
     resp = {
@@ -215,7 +228,8 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
     :param ar_obj: the AnalysisRequest content object
     :param ar_status: HTTP status string used for the AR entry
     :param ar_modified: ISO-formatted last-modified timestamp of the AR
-    :returns: list of bundle-response entry dicts, one per specimen
+    :returns: list of ``(specimen, bundle-response entry)`` tuples, one per
+              specimen
     """
     bundle = sr_resource.get("_bundle")
     if not bundle or not sr_resource.specimen:
@@ -241,14 +255,14 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
         # internal Sample ID. Fail rather than return an entry without it
         rendered_specimen = fapi.get_fhir_resource(
             ar_obj, resource_type="Specimen")
-        entries.append({
+        entries.append((specimen, {
             "fullUrl": "Specimen/{}".format(specimen.id),
             "resource": dict(rendered_specimen),
             "response": {
                 "status": ar_status,
                 "lastModified": ar_modified,
             },
-        })
+        }))
 
     return entries
 

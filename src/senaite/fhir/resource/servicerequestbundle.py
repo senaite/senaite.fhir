@@ -55,8 +55,12 @@ class ServiceRequestBundleResource(Bundle):
         https://fhir.senaite.org/StructureDefinition-SenaiteBundleResponse-definitions.html#key_Bundle.entry
         """
         resources = super(ServiceRequestBundleResource, self).entry
+        # Keep the request position while sorting for dependency processing
+        for index, resource in enumerate(resources):
+            resource["entry_index"] = index
+
         # TODO Sorting of entries inside a ServiceRequestBundle is not neat
-        # sort the entries so they are processed in the right order
+        # Sort only for processing, never for the response order.
         order = ["Organization", "Practitioner", "Specimen", "Patient",
                  "ServiceRequest"]
         return sorted(
