@@ -116,6 +116,14 @@ It carries one entry per processed resource, including the ``Specimen``
     >>> sorted([e["fullUrl"].split("/")[0] for e in entries])
     [u'Organization', u'Patient', u'Practitioner', u'ServiceRequest', u'Specimen']
 
+The response entries are in the same order as their request entries, even
+though the server internally processes them in dependency order:
+
+    >>> request_types = [e["resource"]["resourceType"] for e in bundle["entry"]]
+    >>> response_types = [e["fullUrl"].split("/")[0] for e in entries]
+    >>> response_types == request_types
+    True
+
 The pre-existing Client (Organization) is updated, the rest are created:
 
     >>> status = dict((e["fullUrl"].split("/")[0], e["response"]["status"])
