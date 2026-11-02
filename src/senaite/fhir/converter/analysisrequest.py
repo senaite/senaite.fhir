@@ -138,7 +138,7 @@ class AnalysisRequestToSpecimen(object):
                 )
             )
         data["identifier"] = identifiers
-        data["extension"] = [get_barcode_extension(ar.getId(), ar)]
+        data["extension"] = [get_barcode_extension(ar.getId())]
 
         return SpecimenResource(data)
 

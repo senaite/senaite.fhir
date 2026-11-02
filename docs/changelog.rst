@@ -4,7 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
-- #48 Add barcode PDF attachment as FHIR's Specimen extension
+- #48 Add SVG barcode attachment as FHIR's Specimen extension
 - #44 Let bundle entries know their bundle, and keep it out of snapshots
 - #40 Add external ID behavior for Contacts
 - #43 Test the internal sample ID of Specimens created from bundles

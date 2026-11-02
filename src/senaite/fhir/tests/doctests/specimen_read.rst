@@ -121,9 +121,9 @@ available:
     >>> spec["status"]
     u'available'
 
-The SENAITE specimen barcode is supplied as a base64-encoded PDF attachment
-in its own extension. It uses the internal sample ID encoded as Code 39, so
-it can be printed directly by the receiving system:
+The SENAITE specimen barcode is supplied as a base64-encoded SVG attachment
+in its own extension. It uses the internal sample ID encoded as Code 128, so
+the receiving system can render it at its own printer resolution:
 
     >>> import base64
     >>> barcode_extensions = [extension for extension in spec["extension"]
@@ -134,8 +134,8 @@ it can be printed directly by the receiving system:
     1
     >>> barcode = barcode_extensions[0]["valueAttachment"]
     >>> barcode["contentType"]
-    u'application/pdf'
-    >>> base64.b64decode(barcode["data"]).startswith("%PDF")
+    u'image/svg+xml'
+    >>> b"<svg" in base64.b64decode(barcode["data"])
     True
 
 The ``type`` coding carries the SNOMED system code and the SampleType title:
