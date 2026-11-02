@@ -2,6 +2,9 @@
 
 FHIR_BASE_URL = "https://fhir.senaite.org"
 FHIR_STORAGE_KEY = "senaite.fhir.storage"
+SPECIMEN_BARCODE_EXTENSION_URL = (
+    "https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode"
+)
 
 # Key of the content dict that IFHIRToContent converters use to hand over the
 # secondary FHIR resources of the object being created or updated
@@ -125,7 +128,7 @@ SPECIMEN_STATUSES = (
 # snapshot keeps what the consumer submitted, but these elements are always
 # taken from the live content when the resource is read
 SERVER_OWNED_ELEMENTS = (
-    ("Specimen", ("identifier", "status")),
+    ("Specimen", ("identifier", "status", "extension")),
 )
 
 ANALYSIS_REPORTABLE_STATUSES = (

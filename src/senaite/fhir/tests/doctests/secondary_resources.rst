@@ -244,22 +244,24 @@ Elements owned by SENAITE are taken from the live content
 
 `SERVER_OWNED_ELEMENTS` tells, for each secondary resource type, the elements
 that are owned by SENAITE. For a `Specimen`, these are the identifiers, that
-include the internal Sample ID, and the status:
+include the internal Sample ID, the status, and the complete extension list:
 
     >>> from senaite.fhir.config import SERVER_OWNED_ELEMENTS
     >>> dict(SERVER_OWNED_ELEMENTS).get("Specimen")
-    ('identifier', 'status')
+    ('identifier', 'status', 'extension')
 
 `get_server_owned_elements` synthesizes these elements from the live sample,
 through the same `AnalysisRequestToSpecimen` adapter used for native samples:
 
     >>> owned = fapi.get_server_owned_elements(sample, "Specimen")
     >>> sorted(owned.keys())
-    ['identifier', 'status']
+    ['extension', 'identifier', 'status']
     >>> owned["identifier"] == synthesized["identifier"]
     True
     >>> owned["status"]
     'available'
+    >>> owned["extension"][0]["url"]
+    'https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode'
 
 Nothing is returned for resource types without elements owned by SENAITE, or
 when the object cannot be represented as the given resource type:

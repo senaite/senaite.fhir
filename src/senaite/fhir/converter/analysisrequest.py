@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from bika.lims.interfaces import IAnalysisRequest
+from senaite.fhir.barcode import get_barcode_extension
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SPECIMEN_STATUSES
@@ -137,6 +138,7 @@ class AnalysisRequestToSpecimen(object):
                 )
             )
         data["identifier"] = identifiers
+        data["extension"] = [get_barcode_extension(ar.getId())]
 
         return SpecimenResource(data)
 

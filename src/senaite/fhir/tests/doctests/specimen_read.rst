@@ -121,6 +121,23 @@ available:
     >>> spec["status"]
     u'available'
 
+The SENAITE specimen barcode is supplied as a base64-encoded SVG attachment
+in its own extension. It uses the internal sample ID encoded as Code 128, so
+the receiving system can render it at its own printer resolution:
+
+    >>> import base64
+    >>> barcode_extensions = [extension for extension in spec["extension"]
+    ...                       if extension["url"] == (
+    ...                           "https://fhir.senaite.org/StructureDefinition/"
+    ...                           "SenaiteSpecimenBarcode")]
+    >>> len(barcode_extensions)
+    1
+    >>> barcode = barcode_extensions[0]["valueAttachment"]
+    >>> barcode["contentType"]
+    u'image/svg+xml'
+    >>> b"<svg" in base64.b64decode(barcode["data"])
+    True
+
 The ``type`` coding carries the SNOMED system code and the SampleType title:
 
     >>> spec["type"]["coding"][0]["system"]
@@ -233,6 +250,10 @@ its own FHIR id returns the stored data rather than the on-the-fly synthesis:
     ...             "display": "Serum specimen",
     ...         }]
     ...     },
+    ...     "extension": [{
+    ...         "url": "https://example.org/StructureDefinition/keep-me",
+    ...         "valueString": "preserved",
+    ...     }],
     ... })
     >>> fapi.link_fhir_resource(sample, stored_specimen, secondary=True)
     >>> transaction.commit()
@@ -248,6 +269,10 @@ resource:
     u'b1234567-89ab-cdef-0123-456789abcdef'
     >>> ann["type"]["coding"][0]["display"]
     u'Serum specimen'
+    >>> len(ann["extension"])
+    1
+    >>> ann["extension"][0]["url"]
+    u'https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode'
 
 Once the annotation is in place, fetching by the original AR-based Specimen
 id also returns the stored resource, because the annotation store takes
