@@ -1,13 +1,13 @@
-FHIR Bundle POST (single analysis, asap priority)
--------------------------------------------------
+FHIR Bundle POST (single analysis without panel, asap priority)
+---------------------------------------------------------------
 
-A fourth ``SenaiteRequestBundle`` example: a request for a single analysis
-(Magnesium) with an ``asap`` priority. The ``ServiceRequest`` carries a
-SNOMED ``code`` (*Laboratory procedure*) but no analysis panel, so no
+A `SenaiteRequestBundle` example: a request for a single analysis
+(Magnesium) with an `asap` priority. The `ServiceRequest` carries a
+SNOMED `code` (*Laboratory procedure*) but no analysis panel, so no
 profile is resolved and the Sample ends up with just the ordered analysis.
 
-This also pins the priority mapping: a FHIR ``asap`` priority maps to the
-SENAITE priority ``2``.
+This also pins the priority mapping: a FHIR `asap` priority maps to the
+SENAITE priority `2`.
 
 Running this test from the buildout directory:
 
@@ -46,9 +46,9 @@ Variables:
 Setup objects
 ~~~~~~~~~~~~~
 
-The pre-existing Client (matched by the Organization's ``ClientID``), the
+The pre-existing Client (matched by the Organization's `ClientID`), the
 Serum SampleType, and the single ordered analysis (Magnesium, matched by
-``ProtocolID``):
+`ProtocolID`):
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Cayman Islands Health Services Authority",
@@ -100,7 +100,7 @@ Created content
     >>> portal._p_jar.sync()
 
 A new Sample is created under the Client, including only Magnesium and with
-no analysis profile (the SNOMED ``code`` does not resolve to a panel)::
+no analysis profile (the SNOMED `code` does not resolve to a panel)::
 
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
@@ -115,7 +115,7 @@ no analysis profile (the SNOMED ``code`` does not resolve to a panel)::
     >>> [an.getKeyword for an in sample.getAnalyses()]
     ['Mg']
 
-The ``asap`` priority is mapped to the SENAITE priority ``2``::
+The `asap` priority is mapped to the SENAITE priority `2`::
 
     >>> sample.getPriority()
     '2'

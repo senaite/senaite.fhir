@@ -1,11 +1,11 @@
 FHIR Bundle POST (ifNoneExist conditional create -- Organization, Practitioner)
 --------------------------------------------------------------------------------
 
-Continues ``bundle_post_if_none_exist`` (which covers the ``ifNoneExist``
-mechanics end to end for ``Patient``) with spot-checks for ``Organization`` and
-``Practitioner``, plus two cross-cutting edge cases: more than one match (412,
-whole bundle rejected) and a stray ``ifNoneExist`` on a resource type that
-doesn't support it (``ServiceRequest``/``Specimen`` are ``0..0`` per the IG --
+Continues `bundle_post_if_none_exist` (which covers the `ifNoneExist`
+mechanics end to end for `Patient`) with spot-checks for `Organization` and
+`Practitioner`, plus two cross-cutting edge cases: more than one match (412,
+whole bundle rejected) and a stray `ifNoneExist` on a resource type that
+doesn't support it (`ServiceRequest`/`Specimen` are `0..0` per the IG --
 rejected with 400, whole bundle rejected).
 
 Running this test from the buildout directory:
@@ -62,8 +62,8 @@ Helpers:
     ...                 if api.get_portal_type(obj) == "Client"])
 
 The Organization's placeholder id is also referenced by the ServiceRequest's
-``SenaiteClient`` extension, so repointing it (same reason as
-``bundle_post_if_none_exist``'s ``set_patient_id``, avoiding a later scenario's
+`SenaiteClient` extension, so repointing it (same reason as
+`bundle_post_if_none_exist`'s `set_patient_id`, avoiding a later scenario's
 link stealing an earlier one's FHIR id) means updating both:
 
     >>> def set_org_id(bundle, new_id):
@@ -76,7 +76,7 @@ link stealing an earlier one's FHIR id) means updating both:
 Every scenario that expects a *new* Sample also needs its own ServiceRequest
 placeholder id -- otherwise it silently matches (and updates in place) the
 AnalysisRequest an earlier scenario already linked to the fixture's default id,
-rather than creating a new one (the exact gotcha ``bundle_post_order_detail``
+rather than creating a new one (the exact gotcha `bundle_post_order_detail`
 documents):
 
     >>> def set_sr_id(bundle, new_id):
@@ -96,9 +96,9 @@ Same for the Practitioner, referenced from ServiceRequest.requester:
 Setup objects
 ~~~~~~~~~~~~~
 
-Same fixture as ``bundle_post_identifiers``/``bundle_post_if_none_exist`` --
+Same fixture as `bundle_post_identifiers`/`bundle_post_if_none_exist` --
 the default Client the bundle's own Organization entry already carries an
-external id for (``ORG-RMH-MEL``), plus the AnalysisServices/SampleType the
+external id for (`ORG-RMH-MEL`), plus the AnalysisServices/SampleType the
 ServiceRequest and Specimen need to succeed:
 
     >>> client = api.create(portal.clients, "Client",
@@ -126,8 +126,8 @@ ServiceRequest and Specimen need to succeed:
 Rejection: a stray ifNoneExist on ServiceRequest or Specimen
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``ServiceRequest`` and ``Specimen`` never carry ``ifNoneExist`` per the IG
-(``0..0``) -- both are created fresh on every order. A bundle where any of
+`ServiceRequest` and `Specimen` never carry `ifNoneExist` per the IG
+(`0..0`) -- both are created fresh on every order. A bundle where any of
 them declares one is rejected with 400, before anything is processed, rather
 than silently ignoring it:
 
@@ -151,7 +151,7 @@ than silently ignoring it:
     >>> issue["details"]["text"]
     u'ifNoneExist is not supported for ServiceRequest'
 
-The same for a ``Specimen``:
+The same for a `Specimen`:
 
     >>> bundle = load_bundle()
     >>> set_sr_id(bundle, "e1e1e1e1-e1e1-5e1e-9e1e-e1e1e1e1e1e1")
@@ -186,7 +186,7 @@ A second, unrelated Client already exists:
     >>> portal._p_jar.sync()
     >>> default_samples = len(client.objectValues("AnalysisRequest"))
 
-``ifNoneExist`` matches it by ``ClientID``, not the default ``client``
+`ifNoneExist` matches it by `ClientID`, not the default `client`
 fixture (which the bundle's own Organization body still names):
 
     >>> bundle = load_bundle()
@@ -203,7 +203,7 @@ fixture (which the bundle's own Organization body still names):
     u'200 OK'
 
 No duplicate Client, and the matched one's own Name is untouched -- the
-submitted body (``Royal Melbourne Hospital``) was discarded:
+submitted body (`Royal Melbourne Hospital`) was discarded:
 
     >>> client_count() == before
     True
@@ -232,9 +232,9 @@ A Contact already exists under the default Client:
     >>> transaction.commit()
     >>> before = len(client.getContacts())
 
-This is the same match ``bundle_post_identifiers`` already exercises via the
-always-on ``ContactFinder`` fallback -- here it's driven explicitly by
-``ifNoneExist`` instead, a different code path with the same outcome:
+This is the same match `bundle_post_identifiers` already exercises via the
+always-on `ContactFinder` fallback -- here it's driven explicitly by
+`ifNoneExist` instead, a different code path with the same outcome:
 
     >>> bundle = load_bundle()
     >>> set_sr_id(bundle, "e3e3e3e3-e3e3-5e3e-9e3e-e3e3e3e3e3e3")
@@ -267,7 +267,7 @@ Success: a Practitioner of another Client is not matched
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A Contact belongs to a Client, and the Sample's Contact must belong to the
-Sample's Client. So ``ifNoneExist`` only matches a Practitioner within the
+Sample's Client. So `ifNoneExist` only matches a Practitioner within the
 Client of the bundle's Organization. A Contact of another Client with the
 same external id is not matched:
 
@@ -316,7 +316,7 @@ Rejection: more than one match cannot be evaluated safely (412)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Two Contacts legally share the same external id (unlike Patient MRNs,
-``fhir_external_id`` has no uniqueness constraint):
+`fhir_external_id` has no uniqueness constraint):
 
     >>> dup1 = api.create(client, "Contact", Firstname="Dup", Surname="One")
     >>> dup1.setFHIRExternalID(u"PRACT-DUP")

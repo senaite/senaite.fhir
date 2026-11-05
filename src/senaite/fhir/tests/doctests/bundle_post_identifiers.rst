@@ -1,10 +1,10 @@
 FHIR Bundle POST (Patient/Organization/Practitioner identifier validation)
 ---------------------------------------------------------------------------
 
-Tests the same internal-id/external-id validation pattern used by
-`ResourceToAnalysisRequest.validate_identifiers()` (see
-`bundle_post_order_identifiers.rst`), now applied to `ResourceToPatient`,
-`ResourceToOrganisation` and `ResourceToContact`:
+Tests the identifiers pattern (internal and external identifiers) for the
+`Patient`, `Organization` and `Practitioner` (`ResourceToPatient`,
+`ResourceToOrganisation` and `ResourceToContact`). See
+`bundle_post_order_identifiers` for the `ServiceRequest` and `Specimen`:
 
 1. **Rejection of usual identifier**: a `Patient`, `Organization` or
    `Practitioner` carrying an identifier with `use="usual"` is rejected, since
@@ -385,7 +385,7 @@ object:
     u'transaction-response'
 
 The Patient's MRN matches the Patient resource's external identifier
-(``MRN-20394857``, from ``Bundle.01.json``):
+(`MRN-20394857`, from `Bundle.01.json`):
 
     >>> portal._p_jar.sync()
     >>> patient = papi.get_patient_by_mrn("MRN-20394857")
@@ -393,7 +393,7 @@ The Patient's MRN matches the Patient resource's external identifier
     'MRN-20394857'
 
 The Client's ID matches the Organization resource's external identifier
-(``ORG-RMH-MEL``):
+(`ORG-RMH-MEL`):
 
     >>> clients = portal.clients.objectValues("Client")
     >>> len(clients)
@@ -403,7 +403,7 @@ The Client's ID matches the Organization resource's external identifier
     'ORG-RMH-MEL'
 
 The Contact's `fhir_external_id` matches the Practitioner resource's external
-identifier (``PRACT-DR-SULLIVAN``):
+identifier (`PRACT-DR-SULLIVAN`):
 
     >>> contacts = client.getContacts()
     >>> len(contacts)

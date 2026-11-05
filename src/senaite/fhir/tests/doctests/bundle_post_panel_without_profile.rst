@@ -1,14 +1,15 @@
-FHIR Bundle POST (second example)
----------------------------------
+FHIR Bundle POST (panel without a matching analysis profile)
+------------------------------------------------------------
 
-A second ``SenaiteRequestBundle`` example, exercising the POST endpoint of
-the FHIR API route ``/senaite/@@FHIR/r5`` with a different lab request.
+A `SenaiteRequestBundle` example, exercising the POST endpoint of the FHIR
+API route `/senaite/@@FHIR/r5` with a different lab request than
+`bundle_post`.
 
-This bundle's ``ServiceRequest`` references a panel whose ``code.concept``
-carries a coding but no ``text``, and no matching ``AnalysisProfile`` exists
+This bundle's `ServiceRequest` references a panel whose `code.concept`
+carries a coding but no `text`, and no matching `AnalysisProfile` exists
 in the instance. Resolving the (optional) analysis profile must therefore
 cope with the missing values and yield no profile, rather than failing with
-``500 'NoneType' object has no attribute 'lower'``.
+`500 'NoneType' object has no attribute 'lower'`.
 
 Running this test from the buildout directory:
 
@@ -49,8 +50,8 @@ Load the example bundle from the test data:
 Setup objects
 ~~~~~~~~~~~~~
 
-The pre-existing ``Client`` (matched by the Organization's ``ClientID``) and
-the ``SampleType`` (matched by the Specimen's SNOMED display, ``Serum``):
+The pre-existing `Client` (matched by the Organization's `ClientID`) and
+the `SampleType` (matched by the Specimen's SNOMED display, `Serum`):
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Cayman Islands Health Services Authority",
@@ -58,8 +59,8 @@ the ``SampleType`` (matched by the Specimen's SNOMED display, ``Serum``):
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
 
-The single ordered analysis (LOINC ``19123-9``, matched by ``ProtocolID``).
-Note we deliberately do *not* create an ``AnalysisProfile`` for the panel:
+The single ordered analysis (LOINC `19123-9`, matched by `ProtocolID`).
+Note we deliberately do *not* create an `AnalysisProfile` for the panel:
 
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,
     ...                         "LabContact", Firstname="Lab", Lastname="Boss")
@@ -77,7 +78,7 @@ Note we deliberately do *not* create an ``AnalysisProfile`` for the panel:
 Post the bundle
 ~~~~~~~~~~~~~~~
 
-The Bundle is accepted (no ``500`` from the unresolved panel):
+The Bundle is accepted (no `500` from the unresolved panel):
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
     ...              content_type="application/json")
@@ -123,7 +124,7 @@ A Patient and a Contact (from the Practitioner) were created:
     'Thabo Mbeki'
 
 A Sample was created under the Client, with the single ordered analysis and
-the ``asap`` priority. No analysis profile was assigned -- the unresolved
+the `asap` priority. No analysis profile was assigned -- the unresolved
 panel yields no profile instead of raising::
 
     >>> samples = client.objectValues("AnalysisRequest")

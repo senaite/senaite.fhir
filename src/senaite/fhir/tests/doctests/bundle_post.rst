@@ -1,19 +1,19 @@
 FHIR Bundle POST (lab request)
 ------------------------------
 
-Exercise the POST endpoint of the FHIR API route ``/senaite/@@FHIR/r5``
-with a ``SenaiteRequestBundle`` (a transaction ``Bundle``). Posting the
+Exercise the POST endpoint of the FHIR API route `/senaite/@@FHIR/r5`
+with a `SenaiteRequestBundle` (a transaction `Bundle`). Posting the
 bundle registers a new lab request: the underlying SENAITE objects are
 derived from the FHIR resources it carries.
 
 The example bundle is the one published in the implementation guide:
 https://fhir.senaite.org/Bundle-cafa2ba8-7aad-5d5e-b2c4-752f61f6ec8f.json
 
-It carries a ``Patient``, an ``Organization`` (the submitting Client), a
-``Practitioner`` (the requester), a ``Specimen`` and a ``ServiceRequest``.
-The ``Client`` must already exist in SENAITE; everything else (Patient,
-Practitioner -> Contact and the ServiceRequest -> AnalysisRequest) is
-created automatically.
+It carries a `Patient`, an `Organization` (the submitting Client), a
+`Practitioner` (the requester), a `Specimen` and a `ServiceRequest`.
+Each of them is matched to its counterpart object in SENAITE if it already
+exists, or created otherwise (Organization -> Client, Patient, Practitioner ->
+Contact, ServiceRequest -> AnalysisRequest).
 
 See https://fhir.senaite.org/StructureDefinition-SenaiteRequestBundle.html
 and https://fhir.senaite.org/lab-request-and-results.html
@@ -60,23 +60,23 @@ Load the example bundle from the test data:
 Setup objects
 ~~~~~~~~~~~~~
 
-Only the ``Client`` must pre-exist. The bundle's ``Organization`` is resolved
-to it by the ``ClientFinder`` (an ``IContentFinder`` adapter): it matches on
-the Organization's external identifier (the Client's ``ClientID``) and falls
+Here the `Client` already exists. The bundle's `Organization` is resolved
+to it by the `ClientFinder` (an `IContentFinder` adapter): it matches on
+the Organization's external identifier (the Client's `ClientID`) and falls
 back to the title, so the Organization is *updated* rather than created anew:
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Royal Melbourne Hospital",
     ...                     ClientID="ORG-RMH-MEL")
 
-The ``SampleType`` is matched by the specimen's SNOMED display
-(``Serum specimen``), so it must exist too:
+The `SampleType` is matched by the specimen's SNOMED display
+(`Serum specimen`), so it must exist too:
 
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum specimen", Prefix="SER")
 
 The analysis services are matched by the LOINC codes carried in the
-ServiceRequest ``orderDetail`` (here through their ``ProtocolID``):
+ServiceRequest `orderDetail` (here through their `ProtocolID`):
 
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,
     ...                         "LabContact", Firstname="Lab", Lastname="Boss")
@@ -102,14 +102,14 @@ Post the bundle
     ...              content_type="application/json")
     >>> response = json.loads(browser.contents)
 
-The response is a ``transaction-response`` Bundle:
+The response is a `transaction-response` Bundle:
 
     >>> response["resourceType"]
     u'Bundle'
     >>> response["type"]
     u'transaction-response'
 
-It carries one entry per processed resource, including the ``Specimen``
+It carries one entry per processed resource, including the `Specimen`
 (stored as annotation on the AnalysisRequest):
 
     >>> entries = response["entry"]
@@ -210,8 +210,8 @@ The Patient telecom is mapped onto the patient record:
     '+61 3 9000 1234'
 
 The patient demographics from the bundle are also copied onto the Sample.
-The public accessors (``getMedicalRecordNumberValue`` etc.) are guarded by
-senaite.patient's ``@check_installed``, which requires the senaite.patient
+The public accessors (`getMedicalRecordNumberValue` etc.) are guarded by
+senaite.patient's `@check_installed`, which requires the senaite.patient
 browser layer on the *current* request -- not present in this test thread
 after the POST -- so we read the stored field values directly:
 
@@ -348,7 +348,7 @@ Re-post the same Bundle (idempotent update)
 
 Posting the same Bundle again resolves every resource to its existing
 counterpart and updates it in place, instead of creating duplicates. We
-tweak the ServiceRequest priority (``routine`` -> ``stat``) to observe that
+tweak the ServiceRequest priority (`routine` -> `stat`) to observe that
 the change is propagated to the Sample. The Sample is currently routine::
 
     >>> sample.getPriority()
@@ -372,7 +372,7 @@ The same five resources are reported, now consistently as updated::
     >>> sorted(set(e["response"]["status"] for e in entries))
     [u'200 OK']
 
-No duplicates are created -- it is still the same Sample, now ``stat``::
+No duplicates are created -- it is still the same Sample, now `stat`::
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
@@ -469,8 +469,8 @@ Update a manually-created counterpart (matched by MRN)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A counterpart need not have been created through the FHIR layer to be
-updated: when there is no FHIR-UID match, the ``IContentFinder`` adapter
-resolves it by a business key. ``PatientFinder`` matches a Patient by its
+updated: when there is no FHIR-UID match, the `IContentFinder` adapter
+resolves it by a business key. `PatientFinder` matches a Patient by its
 medical record number. Create a Patient manually first::
 
     >>> manual = api.create(portal.patients, "Patient", mrn=u"MRN-MANUAL",

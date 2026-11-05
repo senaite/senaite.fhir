@@ -1,14 +1,14 @@
-FHIR Bundle POST (electrolyte panel example)
---------------------------------------------
+FHIR Bundle POST (panel resolved to its analysis profile)
+---------------------------------------------------------
 
-A third ``SenaiteRequestBundle`` example: a request for an electrolyte panel.
-The ``ServiceRequest`` references an analysis profile (LOINC ``55231-5``,
-*Electrolyte Panel*) and orders its three tests (Chloride ``2075-0``,
-Potassium ``2823-3``, Sodium ``2951-2``).
+A `SenaiteRequestBundle` example: a request for an electrolyte panel.
+The `ServiceRequest` references an analysis profile (LOINC `55231-5`,
+*Electrolyte Panel*) and orders its three tests (Chloride `2075-0`,
+Potassium `2823-3`, Sodium `2951-2`).
 
 Preconditions:
 
-- the *Electrolyte Panel* ``AnalysisProfile`` exists (profile key ``55231-5``,
+- the *Electrolyte Panel* `AnalysisProfile` exists (profile key `55231-5`,
   with the three services);
 - the *Cayman Islands Health Services Authority* Client exists;
 - the *Serum* SampleType exists;
@@ -55,7 +55,7 @@ Variables:
 Preconditions
 ~~~~~~~~~~~~~
 
-The three electrolyte analysis services (matched by ``ProtocolID``):
+The three electrolyte analysis services (matched by `ProtocolID`):
 
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,
     ...                         "LabContact", Firstname="Lab", Lastname="Boss")
@@ -77,13 +77,13 @@ The three electrolyte analysis services (matched by ``ProtocolID``):
     ...     Category=category.UID(), ProtocolID="2951-2")
 
 The *Electrolyte Panel* profile, keyed by the panel's LOINC code so the
-ServiceRequest's ``code`` resolves to it::
+ServiceRequest's `code` resolves to it::
 
     >>> profile = api.create(setup.analysisprofiles, "AnalysisProfile",
     ...                      title="Electrolyte Panel", ProfileKey="55231-5")
     >>> profile.setServices([chloride.UID(), potassium.UID(), sodium.UID()])
 
-The Client (matched by the Organization's ``ClientID``) and the Serum
+The Client (matched by the Organization's `ClientID`) and the Serum
 SampleType (matched by the Specimen's SNOMED display)::
 
     >>> client = api.create(portal.clients, "Client",

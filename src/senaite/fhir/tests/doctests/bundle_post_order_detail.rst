@@ -1,18 +1,18 @@
 FHIR Bundle POST (orderDetail / code validation scenarios)
 ----------------------------------------------------------
 
-Explicit tests for all six ``orderDetail``/``code`` scenarios:
+Explicit tests for all six `orderDetail`/`code` scenarios:
 
-- **Defer to panel** — named panel code, no ``orderDetail``: SENAITE creates
+- **Defer to panel** — named panel code, no `orderDetail`: SENAITE creates
   the sample using the profile's analyses
-- **Full elaboration** — named panel code, ``orderDetail`` lists every panel
+- **Full elaboration** — named panel code, `orderDetail` lists every panel
   test: sample created for exactly those tests
-- **Partial subset (rejected)** — named panel code, ``orderDetail`` omits one
-  or more panel tests: ``400 Bad Request`` / ``OperationOutcome``
-- **Defer to orderDetail** — default catch-all code (``30954-2``),
-  ``orderDetail`` present: sample created for exactly those tests
-- **Default panel, no tests (rejected)** — code ``30954-2``, no
-  ``orderDetail``: ``400 Bad Request`` / ``OperationOutcome``
+- **Partial subset (rejected)** — named panel code, `orderDetail` omits one
+  or more panel tests: `400 Bad Request` / `OperationOutcome`
+- **Defer to orderDetail** — default catch-all code (`30954-2`),
+  `orderDetail` present: sample created for exactly those tests
+- **Default panel, no tests (rejected)** — code `30954-2`, no
+  `orderDetail`: `400 Bad Request` / `OperationOutcome`
 
 Running this test from the buildout directory:
 
@@ -43,7 +43,7 @@ Variables:
     >>> browser.raiseHttpErrors = False
     >>> setRoles(portal, TEST_USER_ID, ["LabManager", "Manager"])
 
-Load the base bundle (Electrolyte Panel, three tests in ``orderDetail``):
+Load the base bundle (Electrolyte Panel, three tests in `orderDetail`):
 
     >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.03.json")
     >>> base_bundle = json.loads(raw)
@@ -137,7 +137,7 @@ Shorthand for the LOINC orderDetail parameter structure:
 Scenario 1: Defer to panel (empty orderDetail)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a named panel code is present and ``orderDetail`` is omitted, SENAITE
+When a named panel code is present and `orderDetail` is omitted, SENAITE
 assigns the profile and derives all analyses from it — nothing needs to be
 enumerated by the caller.
 
@@ -175,7 +175,7 @@ the three panel analyses:
 Scenario 2: Full elaboration (all panel tests enumerated)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a named panel code is present and ``orderDetail`` enumerates every test
+When a named panel code is present and `orderDetail` enumerates every test
 in the panel, the sample is created for exactly those tests and the profile is
 also assigned.
 
@@ -216,9 +216,9 @@ A new sample is created with the profile and exactly the three tests:
 Scenario 3: Partial subset rejected (400)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When a named panel code is present and ``orderDetail`` omits one or more of
-the panel's tests, the request is rejected with ``400 Bad Request`` and an
-``OperationOutcome``. No sample is created.
+When a named panel code is present and `orderDetail` omits one or more of
+the panel's tests, the request is rejected with `400 Bad Request` and an
+`OperationOutcome`. No sample is created.
 
 Only Chloride is listed; Potassium and Sodium are missing:
 
@@ -250,9 +250,9 @@ No new sample was created:
 Scenario 4: Defer to orderDetail (default code 30954-2)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When ``code`` carries the default catch-all LOINC ``30954-2``, the server
+When `code` carries the default catch-all LOINC `30954-2`, the server
 skips panel-membership validation and creates a sample with exactly the tests
-listed in ``orderDetail``.
+listed in `orderDetail`.
 
     >>> bundle = copy.deepcopy(base_bundle)
     >>> sr = get_sr_entry(bundle)["resource"]
@@ -288,7 +288,7 @@ A new sample is created with only Magnesium and no profile:
 Scenario 5: Default code with no tests rejected (400)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When ``code`` is ``30954-2`` and ``orderDetail`` is absent, there is neither a
+When `code` is `30954-2` and `orderDetail` is absent, there is neither a
 panel to expand nor explicit tests. The request must be rejected.
 
     >>> bundle = copy.deepcopy(base_bundle)

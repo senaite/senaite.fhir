@@ -1,14 +1,14 @@
 FHIR Bundle POST (panel plus an extra analysis)
 -----------------------------------------------
 
-A fifth ``SenaiteRequestBundle`` example: an electrolyte panel request that
-also orders an analysis *beyond* the panel. The ``ServiceRequest`` references
-the *Electrolyte Panel* profile (LOINC ``55231-5``) and its ``orderDetail``
-lists Magnesium (``19123-9``) in addition to the panel's three tests
-(Chloride ``2075-0``, Potassium ``2823-3``, Sodium ``2951-2``).
+A `SenaiteRequestBundle` example: an electrolyte panel request that also
+orders an analysis *beyond* the panel. The `ServiceRequest` references
+the *Electrolyte Panel* profile (LOINC `55231-5`) and its `orderDetail`
+lists Magnesium (`19123-9`) in addition to the panel's three tests
+(Chloride `2075-0`, Potassium `2823-3`, Sodium `2951-2`).
 
 Expected: a new Sample that includes the panel analyses *and* Magnesium, with
-the FHIR ``urgent`` priority mapped to the SENAITE priority ``3``.
+the FHIR `urgent` priority mapped to the SENAITE priority `3`.
 
 Running this test from the buildout directory:
 
@@ -47,7 +47,7 @@ Variables:
 Preconditions
 ~~~~~~~~~~~~~
 
-The four analysis services (matched by ``ProtocolID``); Magnesium is not part
+The four analysis services (matched by `ProtocolID`); Magnesium is not part
 of the panel:
 
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,
@@ -163,7 +163,7 @@ three tests *plus* the extra Magnesium analysis attached::
     >>> sorted([an.getKeyword for an in sample.getAnalyses()])
     ['Cl', 'K', 'Mg', 'Na']
 
-The ``urgent`` priority is mapped to the SENAITE priority ``3`` (Medium)::
+The `urgent` priority is mapped to the SENAITE priority `3` (Medium)::
 
     >>> sample.getPriority()
     '3'
