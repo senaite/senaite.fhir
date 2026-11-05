@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from bika.lims.interfaces import IAnalysisRequest
+from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SPECIMEN_STATUSES
@@ -132,7 +133,7 @@ class AnalysisRequestToSpecimen(object):
         if client_sample_id:
             identifiers.append(
                 to_fhir_id(
-                    "client-sample-id",
+                    CLIENT_SAMPLE_ID_SYSTEM,
                     client_sample_id,
                     use="secondary",
                 )
@@ -175,7 +176,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
         specimen = self.get_specimen()
         if specimen:
             fapi.validate_internal_identifier(specimen)
-            system = to_naming_system_url("client-sample-id")
+            system = to_naming_system_url(CLIENT_SAMPLE_ID_SYSTEM)
             fapi.validate_external_identifier(specimen, system)
 
     def to_content_dict(self):

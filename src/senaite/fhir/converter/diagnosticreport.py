@@ -5,6 +5,7 @@ import base64
 from bika.lims import api
 from senaite.core.interfaces import IResultsReport
 from senaite.fhir import api as fapi
+from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
 from senaite.fhir.config import DIAGNOSTIC_REPORT_STATUSES
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
@@ -77,7 +78,7 @@ class ResultsReportToResource(object):
         if client_sample_id:
             identifiers.append(
                 to_fhir_id(
-                    "client-sample-id",
+                    CLIENT_SAMPLE_ID_SYSTEM,
                     client_sample_id,
                     use="secondary")
             )

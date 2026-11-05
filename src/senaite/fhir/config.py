@@ -3,6 +3,10 @@
 FHIR_BASE_URL = "https://fhir.senaite.org"
 FHIR_STORAGE_KEY = "senaite.fhir.storage"
 
+# Id of the NamingSystem of the Client Sample ID, the external identifier of
+# a Specimen. https://fhir.senaite.org/identifiers.html
+CLIENT_SAMPLE_ID_SYSTEM = "client-sample-id"
+
 # Key of the content dict that IFHIRToContent converters use to hand over the
 # secondary FHIR resources of the object being created or updated
 SECONDARY_RESOURCES_KEY = "_fhir_secondary_resources"
