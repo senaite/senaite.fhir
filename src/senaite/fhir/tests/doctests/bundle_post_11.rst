@@ -81,7 +81,6 @@ at the fixture's original placeholder, so it must be repointed too:
 
     >>> def set_patient_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Patient")
-    ...     entry["resource"]["id"] = new_id
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
     ...     sr_entry = get_entry(bundle, "ServiceRequest")
     ...     sr_entry["resource"]["subject"]["reference"] = (
@@ -268,7 +267,7 @@ same as a real create/update would do:
 
     >>> patient_entry = get_entry(bundle, "Patient")
     >>> match = fapi.get_object_by_fhir_uid(
-    ...     patient_entry["resource"]["id"], "Patient")
+    ...     patient_entry["fullUrl"].split(":")[-1], "Patient")
     >>> fapi.get_uid(match) == fapi.get_uid(existing)
     True
 
