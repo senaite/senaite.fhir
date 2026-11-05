@@ -52,5 +52,6 @@ class ResourceToContact(ResourceToPerson):
     def get_external_id(self):
         """Return the identifier assigned by the FHIR API consumer
         """
-        identifier = self.resource.get_external_id()
+        identifier = fapi.get_external_identifier(
+            self.resource, PRACTITIONER_EXTERNAL_ID_SYSTEM)
         return identifier.value if identifier else None

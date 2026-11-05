@@ -12,7 +12,8 @@ now applied to `ResourceToPatient`, `ResourceToOrganisation` and
 
 2. **Rejection of external identifier with no/unsupported system**: a
    `use="secondary"` identifier with no `system`, or one other than the
-   type's fixed default `NamingSystem`, is rejected.
+   type's fixed default `NamingSystem`, is rejected. Every external
+   identifier is checked, whatever its position.
 
 3. **Success**: a `use="secondary"` identifier under the correct default
    system is accepted and mapped to the counterpart SENAITE field (Patient's
@@ -124,6 +125,52 @@ Rejection: Patient with an external identifier carrying no system
     True
     >>> no_clients_created()
     True
+
+
+Rejection: Patient with an additional external identifier of another system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A `Patient` can only carry external identifiers of its own `NamingSystem`.
+Another one is rejected, even when it comes after a valid MRN:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Patient")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "use": "secondary",
+    ...     "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...     "value": "MRN-VALID",
+    ... }, {
+    ...     "use": "secondary",
+    ...     "system": "urn:oid:2.16.840.1.113883.4.1",
+    ...     "value": "NATIONAL-ID",
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Unsupported identifier system in Patient" in error_text(outcome)
+    True
+    >>> no_clients_created()
+    True
+
+The external identifier of a resource is picked by its `NamingSystem`, not
+by its position:
+
+    >>> from senaite.fhir import api as fapi
+    >>> resource = fapi.to_fhir_resource({
+    ...     "resourceType": "Patient",
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "urn:oid:2.16.840.1.113883.4.1",
+    ...         "value": "NATIONAL-ID",
+    ...     }, {
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "MRN-VALID",
+    ...     }],
+    ... })
+    >>> fapi.get_external_identifier(resource, "patient-mrn").value
+    'MRN-VALID'
+    >>> fapi.get_external_identifier(resource, "organization-external-id")
 
 
 Rejection: Organization with a usual identifier

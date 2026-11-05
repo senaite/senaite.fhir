@@ -301,7 +301,8 @@ class ResourceToPatient(ResourceToContent):
     def get_mrn(self):
         """Returns the MRN from the resource
         """
-        identifier = self.resource.get_identifier(use="secondary")
+        identifier = fapi.get_external_identifier(
+            self.resource, PATIENT_MRN_SYSTEM)
         return identifier.value if identifier else None
 
     def get_sex(self):

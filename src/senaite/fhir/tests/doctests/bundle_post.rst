@@ -266,6 +266,8 @@ a different family name:
     ...             resource["id"] = unknown_id
     ...             resource["identifier"] = [{
     ...                 "use": "secondary",
+    ...                 "system": fapi.to_naming_system_url(
+    ...                     "practitioner-external-id"),
     ...                 "value": external_id,
     ...             }]
     ...             if family:

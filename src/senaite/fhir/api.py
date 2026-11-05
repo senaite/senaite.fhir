@@ -16,6 +16,7 @@ from Products.CMFCore.permissions import ModifyPortalContent
 from senaite.fhir import logger
 from senaite.fhir.catalog import FHIR_CATALOG
 from senaite.fhir.config import ANALYSIS_REPORTABLE_STATUSES
+from senaite.fhir.config import FHIR_BASE_URL
 from senaite.fhir.config import FHIR_RESOURCE_TO_PORTAL_TYPE
 from senaite.fhir.config import FHIR_STORAGE_KEY
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
@@ -639,6 +640,42 @@ def can_create_or_update(resource):
     return True
 
 
+def to_naming_system_url(system_id):
+    """Returns the canonical NamingSystem URI for an identifier namespace
+
+    `system_id` is the NamingSystem id as published in the implementation
+    guide, e.g. `sample-id`, `analysis-id` or `client-sample-id`. The URI it
+    builds is what a FHIR `Identifier.system` has to carry for a consumer to
+    tell one namespace from another, so it serves both to stamp outgoing
+    identifiers and to check the system of the incoming ones.
+    https://fhir.senaite.org/identifiers.html
+    """
+    return "%s/NamingSystem/%s" % (FHIR_BASE_URL, system_id)
+
+
+def get_external_identifiers(resource):
+    """Returns the external (secondary) identifiers of the resource, those
+    assigned by the API consumer
+    https://fhir.senaite.org/identifiers.html
+    """
+    identifiers = getattr(resource, "identifier", None) or []
+    return [item for item in identifiers if item.use == "secondary"]
+
+
+def get_external_identifier(resource, system_id):
+    """Returns the external (secondary) identifier of the resource with the
+    NamingSystem of the given id, if any. Returns None otherwise
+
+    :param resource: the FHIR resource
+    :param system_id: id of the NamingSystem (e.g. `patient-mrn`)
+    """
+    system = to_naming_system_url(system_id)
+    for identifier in get_external_identifiers(resource):
+        if identifier.system == system:
+            return identifier
+    return None
+
+
 def validate_no_identifier(resource):
     """Raises an IdentifierValidationError if the resource carries any
     identifier at all, whatever its `use`. For resources that support no
@@ -667,24 +704,23 @@ def validate_internal_identifier(resource):
         raise IdentifierValidationError(resource, msg)
 
 
-def validate_external_identifier(resource, system):
-    """Raises an IdentifierValidationError if the external (secondary)
-    identifier of the resource, if any, has no system or a system other than
-    the given one
+def validate_external_identifier(resource, system_id):
+    """Raises an IdentifierValidationError if any of the external (secondary)
+    identifiers of the resource has no system or a system other than the
+    NamingSystem with the given id. A resource can only carry external
+    identifiers of the system it supports, whatever their position
 
     :param resource: the incoming FHIR resource to validate
-    :param system: URL of the NamingSystem the external identifier must have
-        (e.g. `https://fhir.senaite.org/NamingSystem/patient-mrn`)
+    :param system_id: id of the NamingSystem the external identifiers must
+        have (e.g. `patient-mrn`)
     """
-    external_id = resource.get_external_id()
-    if not external_id:
-        return
-
-    if external_id.system != system:
-        msg = (
-            "Unsupported identifier system in {}: {}"
-        ).format(resource.resourceType, external_id.system)
-        raise IdentifierValidationError(resource, msg)
+    system = to_naming_system_url(system_id)
+    for identifier in get_external_identifiers(resource):
+        if identifier.system != system:
+            msg = (
+                "Unsupported identifier system in {}: {}"
+            ).format(resource.resourceType, identifier.system)
+            raise IdentifierValidationError(resource, msg)
 
 
 def update(obj, resource):

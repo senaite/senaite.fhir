@@ -9,24 +9,11 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir import api as fapi
+from senaite.fhir.api import to_naming_system_url
 from senaite.fhir.config import FHIR_BASE_URL
 from senaite.fhir.interfaces import IFHIRToContent
 from zope.deprecation import deprecate
 from zope.interface import implementer
-
-
-def to_naming_system_url(system_id):
-    """Returns the canonical NamingSystem URI for an identifier namespace
-
-    `system_id` is the NamingSystem id as published in the implementation
-    guide, e.g. `sample-id`, `analysis-id` or `client-sample-id`. The URI it
-    builds is what a FHIR `Identifier.system` has to carry for a consumer to
-    tell one namespace from another, so it serves both to stamp outgoing
-    identifiers (see `to_fhir_identifier`) and to check the system of the
-    incoming ones.
-    https://fhir.senaite.org/identifiers.html
-    """
-    return "%s/NamingSystem/%s" % (FHIR_BASE_URL, system_id)
 
 
 def to_code_system_url(system_id):
@@ -87,8 +74,8 @@ class ResourceToContent(object):
             return
 
         fapi.validate_internal_identifier(self.resource)
-        system = to_naming_system_url(self.external_id_system)
-        fapi.validate_external_identifier(self.resource, system)
+        fapi.validate_external_identifier(
+            self.resource, self.external_id_system)
 
 
 def to_fhir_profile_url(resource_type):

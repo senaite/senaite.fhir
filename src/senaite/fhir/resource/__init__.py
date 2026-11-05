@@ -81,16 +81,6 @@ class FHIRResource(dict):
         """
         return get_by_key(self.extension, key="url", value=url)
 
-    def get_external_id(self):
-        """Returns the Identifier object representing the identifier
-        originating from the API's consumer system (e.g. the ordering EHR or
-        middleware)
-        https://fhir.senaite.org/identifiers.html
-        """
-        # TODO Move this function to fapi.resource
-        identifiers = getattr(self, "identifier", [])
-        return first_by(identifiers, use="secondary")
-
     def get_object_id(self):
         """Returns the Identifier object representing the internal identifier
         created and assigned by SENAITE
