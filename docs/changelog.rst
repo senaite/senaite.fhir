@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 - #49 Preserve request order in transaction response bundles
+- #48 Add SVG barcode attachment as FHIR's Specimen extension
 - #51 Reject client-supplied bundle resource ID
 - #47 Add support for ifNoneExist conditional create for Bundle
 - #46 Ensure consistent Bundle identifier handling
