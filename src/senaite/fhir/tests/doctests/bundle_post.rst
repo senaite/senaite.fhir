@@ -62,8 +62,8 @@ Setup objects
 
 Here the `Client` already exists. The bundle's `Organization` is resolved
 to it by the `ClientFinder` (an `IContentFinder` adapter): it matches on
-the Organization's external identifier (the Client's `ClientID`) and falls
-back to the title, so the Organization is *updated* rather than created anew:
+the Organization's external identifier (the Client's `ClientID`), so the
+Organization is *updated* rather than created anew:
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Royal Melbourne Hospital",
@@ -445,8 +445,9 @@ Nor was the Contact of the other Client modified:
     >>> fapi.get_fhir_id(another_contact, "Practitioner") == practitioner_id
     False
 
-Posting the `Practitioner` without its external ID does not wipe the one the
-Contact already has:
+The external ID of the `Practitioner` is required, even when it is matched by
+its FHIR id. Posting it without is rejected, and the Contact keeps the
+external ID it already has:
 
     >>> for entry in repeat["entry"]:
     ...     resource = entry["resource"]
@@ -455,10 +456,11 @@ Contact already has:
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(repeat),
     ...              content_type="application/json")
-    >>> response = json.loads(browser.contents)
-    >>> [e["response"]["status"] for e in response["entry"]
-    ...  if e["fullUrl"].startswith("Practitioner/")]
-    [u'200 OK']
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> outcome = json.loads(browser.contents)
+    >>> outcome["issue"][0]["expression"]
+    [u'Practitioner.identifier']
 
     >>> portal._p_jar.sync()
     >>> contact.getFHIRExternalID()

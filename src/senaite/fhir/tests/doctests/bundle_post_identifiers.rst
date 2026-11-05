@@ -308,6 +308,28 @@ Rejection: Practitioner with an external identifier carrying no system
     True
 
 
+Rejection: Practitioner without external identifier
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The external identifier is the only key the Practitioner is matched to its
+Contact by, so a Practitioner without it is rejected. Otherwise every bundle
+would create another Contact:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Practitioner")
+    >>> del entry["resource"]["identifier"]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> issue = outcome["issue"][0]
+    >>> issue["code"], issue["expression"]
+    (u'invalid', [u'Practitioner.identifier'])
+    >>> error_text(outcome)
+    u'Missing external identifier in Practitioner'
+    >>> no_clients_created()
+    True
+
+
 Rejection: identifiers that are not `use="secondary"`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

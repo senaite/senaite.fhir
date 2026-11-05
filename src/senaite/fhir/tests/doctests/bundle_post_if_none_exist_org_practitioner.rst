@@ -341,6 +341,12 @@ Two Contacts legally share the same external id (unlike Patient MRNs,
     >>> outcome["issue"][0]["code"]
     u'multiple-matches'
 
+The outcome names the matching Contacts:
+
+    >>> text = outcome["issue"][0]["details"]["text"]
+    >>> api.get_id(dup1) in text and api.get_id(dup2) in text
+    True
+
 The whole transaction is rejected -- no third Contact and no new Sample:
 
     >>> portal._p_jar.sync()
