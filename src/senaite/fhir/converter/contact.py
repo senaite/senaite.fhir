@@ -3,6 +3,7 @@
 from senaite.fhir import api as fapi
 from bika.lims import api
 from senaite.fhir.converter.person import ResourceToPerson
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IPractitionerResource
 from zope.component import adapter
@@ -12,6 +13,19 @@ from zope.interface import implementer
 @adapter(IPractitionerResource)
 @implementer(IFHIRToContent)
 class ResourceToContact(ResourceToPerson):
+
+    def validate(self):
+        """Raises a ResourceValidationError if the resource violates any of
+        the validation rules. The external identifier is required, as it is
+        the only key the Practitioner is matched to its Contact by: without
+        it, every request would create another Contact
+        """
+        super(ResourceToContact, self).validate()
+        identifier = self.resource.get_external_id()
+        if not identifier or not identifier.value:
+            raise ResourceValidationError(
+                "Missing external identifier in Practitioner",
+                expression=["Practitioner.identifier"], code="invalid")
 
     def get_parent(self):
         """Returns the parent object to which the counterpart object should
