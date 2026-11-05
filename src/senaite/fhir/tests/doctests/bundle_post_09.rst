@@ -15,7 +15,11 @@ now applied to `ResourceToPatient`, `ResourceToOrganisation` and
    type's fixed default `NamingSystem`, is rejected. Every external
    identifier is checked, whatever its position.
 
-3. **Success**: a `use="secondary"` identifier under the correct default
+3. **Rejection of identifiers that are not `use="secondary"`**: any
+   identifier other than an internal (`usual`) one must have
+   `use="secondary"`; one with no `use`, or another one, is rejected.
+
+4. **Success**: a `use="secondary"` identifier under the correct default
    system is accepted and mapped to the counterpart SENAITE field (Patient's
    MRN, Client's `ClientID`, Contact's `fhir_external_id`).
 
@@ -262,6 +266,66 @@ Rejection: Practitioner with an external identifier carrying no system
     >>> status
     '400 Bad Request'
     >>> "Unsupported identifier system in Practitioner" in error_text(outcome)
+    True
+    >>> no_clients_created()
+    True
+
+
+Rejection: identifiers that are not `use="secondary"`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The consumer can only send external identifiers, so any identifier other than
+an internal (`usual`) one must have `use="secondary"`. One with the supported
+system but no `use` is rejected, instead of being silently ignored:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Patient")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...     "value": "MRN-NO-USE",
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Missing identifier use in Patient" in error_text(outcome)
+    True
+    >>> no_clients_created()
+    True
+
+So is one with any other `use`:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Practitioner")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "use": "official",
+    ...     "system": (
+    ...         "https://fhir.senaite.org/NamingSystem/"
+    ...         "practitioner-external-id"),
+    ...     "value": "PRACT-OFFICIAL",
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Unsupported identifier use in Practitioner: official" in (
+    ...     error_text(outcome))
+    True
+    >>> no_clients_created()
+    True
+
+This also covers an internal identifier sent under another `use`:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Organization")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "use": "official",
+    ...     "system": "https://fhir.senaite.org/NamingSystem/organization-id",
+    ...     "value": "client-999",
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Unsupported identifier use in Organization: official" in (
+    ...     error_text(outcome))
     True
     >>> no_clients_created()
     True

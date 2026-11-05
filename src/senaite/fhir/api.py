@@ -653,15 +653,6 @@ def to_naming_system_url(system_id):
     return "%s/NamingSystem/%s" % (FHIR_BASE_URL, system_id)
 
 
-def get_external_identifiers(resource):
-    """Returns the external (secondary) identifiers of the resource, those
-    assigned by the API consumer
-    https://fhir.senaite.org/identifiers.html
-    """
-    identifiers = getattr(resource, "identifier", None) or []
-    return [item for item in identifiers if item.use == "secondary"]
-
-
 def validate_identifiers(resource):
     """Raises an IdentifierValidationError if the identifiers of the incoming
     resource do not follow the identifiers pattern. A resource whose type
@@ -708,15 +699,32 @@ def validate_internal_identifier(resource):
 
 
 def validate_external_identifier(resource):
-    """Raises an IdentifierValidationError if any of the external (secondary)
-    identifiers of the resource has no system or a system other than the
-    NamingSystem its type supports. A resource can only carry external
-    identifiers of that system, whatever their position
+    """Raises an IdentifierValidationError if any of the identifiers of the
+    resource other than the internal (usual) one is not an external one, with
+    `use="secondary"` and the NamingSystem its type supports. A resource can
+    only carry external identifiers of that system, whatever their position
+
+    The internal (usual) identifier is validated by
+    `validate_internal_identifier`
 
     :param resource: the incoming FHIR resource to validate
     """
     system = to_naming_system_url(resource.external_id_system)
-    for identifier in get_external_identifiers(resource):
+    identifiers = getattr(resource, "identifier", None) or []
+    for identifier in identifiers:
+        if identifier.use == "usual":
+            continue
+
+        if not identifier.use:
+            msg = "Missing identifier use in {}".format(resource.resourceType)
+            raise IdentifierValidationError(resource, msg)
+
+        if identifier.use != "secondary":
+            msg = (
+                "Unsupported identifier use in {}: {}"
+            ).format(resource.resourceType, identifier.use)
+            raise IdentifierValidationError(resource, msg)
+
         if identifier.system != system:
             msg = (
                 "Unsupported identifier system in {}: {}"
