@@ -111,6 +111,10 @@ def post(context, request, resource_type=None):
 
         # create or update the counterpart object
         try:
+            # validate before searching the counterpart object, so the rules
+            # apply whatever happens next: creation, update or a match
+            fapi.validate(resource)
+
             obj = find_object_for(resource)
             if not obj:
                 obj = fapi.create(resource)

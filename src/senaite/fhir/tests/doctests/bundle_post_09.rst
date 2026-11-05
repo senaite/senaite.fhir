@@ -372,3 +372,37 @@ identifier (``PRACT-DR-SULLIVAN``):
     1
     >>> contacts[0].getFHIRExternalID()
     'PRACT-DR-SULLIVAN'
+
+
+Rejection: invalid identifiers on resources that already exist
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The resources are validated before their counterpart objects are searched, so
+the rules apply to the objects that already exist as well. Send the same
+bundle again, now with the existing Patient also carrying a usual identifier:
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Patient")
+    >>> entry["resource"]["identifier"].append({
+    ...     "use": "usual",
+    ...     "system": "https://fhir.senaite.org/NamingSystem/patient-id",
+    ...     "value": "P-999",
+    ... })
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Cannot specify usual identifier externally in incoming Patient" in (
+    ...     error_text(outcome))
+    True
+
+The rules are those of the converter of the resource, available through the
+API as well:
+
+    >>> from senaite.fhir import api as fapi
+    >>> from senaite.fhir.exceptions import IdentifierValidationError
+    >>> patient_resource = fapi.to_fhir_resource(entry["resource"])
+    >>> try:
+    ...     fapi.validate(patient_resource)
+    ... except IdentifierValidationError as e:
+    ...     print(e.expression)
+    ['Patient.identifier']

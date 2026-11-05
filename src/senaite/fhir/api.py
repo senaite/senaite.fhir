@@ -616,6 +616,18 @@ def to_content_dict(resource, default=_marker):
     return adapter.to_content_dict()
 
 
+def validate(resource):
+    """Raises a ResourceValidationError if the resource violates any of the
+    validation rules of its IFHIRToContent converter
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    adapter = queryAdapter(resource, IFHIRToContent)
+    if not adapter:
+        raise ValueError("Missing IFHIRToContent adapter for %r" % resource)
+    adapter.validate()
+
+
 def can_create_or_update(resource):
     """Returns whether the creation of counterpart objects for the given
     resources is supported
