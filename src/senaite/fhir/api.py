@@ -24,6 +24,7 @@ from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
 from senaite.fhir.exceptions import FHIRAPIError
 from senaite.fhir.exceptions import IdentifierValidationError
+from senaite.fhir.exceptions import LogicalIdValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -693,6 +694,25 @@ def validate_no_identifier(resource):
         msg = "Cannot specify any identifier in {}".format(
             resource.resourceType)
         raise IdentifierValidationError(resource, msg)
+
+
+def validate_no_logical_id(resource):
+    """Raises a LogicalIdValidationError if the bundle entry of the resource
+    carries a `resource.id`. The logical id is assigned by SENAITE: a POSTed
+    entry is only identified by the placeholder of its `fullUrl`, which the
+    other entries of the bundle refer to
+
+    :param resource: the FHIR resource of a bundle entry
+    """
+    bundle = resource.get("_bundle")
+    if not bundle:
+        return
+    index = bundle.get_entry_index(resource)
+    if index is None:
+        return
+    entry = bundle["entry"][index]
+    if "id" in (entry.get("resource") or {}):
+        raise LogicalIdValidationError(index)
 
 
 def validate_internal_identifier(resource):

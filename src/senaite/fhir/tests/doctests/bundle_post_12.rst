@@ -68,7 +68,6 @@ stealing an earlier one's FHIR id) means updating both:
 
     >>> def set_org_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Organization")
-    ...     entry["resource"]["id"] = new_id
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
     ...     sr_entry = get_entry(bundle, "ServiceRequest")
     ...     ext = sr_entry["resource"]["extension"][0]
@@ -82,14 +81,12 @@ documents):
 
     >>> def set_sr_id(bundle, new_id):
     ...     entry = get_entry(bundle, "ServiceRequest")
-    ...     entry["resource"]["id"] = new_id
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
 
 Same for the Practitioner, referenced from ServiceRequest.requester:
 
     >>> def set_practitioner_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Practitioner")
-    ...     entry["resource"]["id"] = new_id
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
     ...     sr_entry = get_entry(bundle, "ServiceRequest")
     ...     sr_entry["resource"]["requester"]["reference"] = (

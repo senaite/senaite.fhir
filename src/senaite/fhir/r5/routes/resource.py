@@ -103,10 +103,11 @@ def post(context, request, resource_type=None):
     # get the FHIR resources from the request
     resources = get_fhir_resources()
 
-    # reject the conditional creates of resource types that do not support
-    # them, before anything is processed
+    # reject the entries that carry a logical id, and the conditional creates
+    # of resource types that do not support them, before anything is processed
     for resource in resources:
         try:
+            fapi.validate_no_logical_id(resource)
             conditions.validate_if_none_exist(resource)
         except ResourceValidationError as e:
             return get_validation_outcome(request, e)
@@ -228,8 +229,8 @@ def post(context, request, resource_type=None):
 
 def get_validation_outcome(request, error):
     """Rolls back the transaction and returns the OperationOutcome for the
-    given ResourceValidationError, with the HTTP status that matches its
-    issue code
+    given ResourceValidationError, with the HTTP status of the error, or the
+    one that matches its issue code otherwise
 
     :param request: the current request
     :param error: the ResourceValidationError raised
@@ -241,12 +242,18 @@ def get_validation_outcome(request, error):
         status_code = 409
     elif code == "multiple-matches":
         status_code = 412
+    status_code = getattr(error, "status", None) or status_code
+
+    details = {"text": str(error)}
+    coding = getattr(error, "coding", None)
+    if coding:
+        details["coding"] = coding
 
     request.response.setStatus(status_code)
     issue = {
         "severity": "error",
         "code": code,
-        "details": {"text": str(error)},
+        "details": details,
         "expression": error.expression,
     }
     return OperationOutcome({"issue": [issue]})
