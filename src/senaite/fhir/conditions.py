@@ -11,7 +11,7 @@ from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
 from senaite.fhir.config import PRACTITIONER_ID_SYSTEM
 from senaite.fhir.converter import to_naming_system_url
-from senaite.fhir.exceptions import ServiceRequestValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.patient.catalog import PATIENT_CATALOG
 
 # Resource type -> (catalog id, internal NamingSystem id,
@@ -83,7 +83,7 @@ def find_by_if_none_exist(resource, raw):
         get_if_none_exist that this type is supported)
     :param raw: the raw ifNoneExist string (from get_if_none_exist)
     :returns: the matched content object, or None for zero matches
-    :raises ServiceRequestValidationError: code="multiple-matches" (mapped
+    :raises ResourceValidationError: code="multiple-matches" (mapped
         to HTTP 412 by post()) when the precondition can't be safely
         evaluated
     """
@@ -96,17 +96,17 @@ def find_by_if_none_exist(resource, raw):
     external_system = to_naming_system_url(external_id)
 
     if not system:
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             "Missing identifier system in {}.request.ifNoneExist: {!r}"
             .format(resource_type, raw),
             expression=expression, code="multiple-matches")
     if system not in (internal_system, external_system):
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             "Unsupported identifier system in {}.request.ifNoneExist: {}"
             .format(resource_type, system),
             expression=expression, code="multiple-matches")
     if not value:
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             "Missing identifier value in {}.request.ifNoneExist: {!r}"
             .format(resource_type, raw),
             expression=expression, code="multiple-matches")
@@ -116,7 +116,7 @@ def find_by_if_none_exist(resource, raw):
     brains = api.search({"portal_type": portal_type, index: value}, catalog)
 
     if len(brains) > 1:
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             "Multiple {} resources match ifNoneExist: {}"
             .format(resource_type, raw),
             expression=expression, code="multiple-matches")
