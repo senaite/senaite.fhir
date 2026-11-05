@@ -1,7 +1,7 @@
 FHIR Bundle POST (orderDetail / code validation scenarios)
 ----------------------------------------------------------
 
-Explicit tests for all six `orderDetail`/`code` scenarios:
+Explicit tests for all five `orderDetail`/`code` scenarios:
 
 - **Defer to panel** — named panel code, no `orderDetail`: SENAITE creates
   the sample using the profile's analyses

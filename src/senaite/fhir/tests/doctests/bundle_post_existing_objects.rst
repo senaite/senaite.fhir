@@ -54,8 +54,8 @@ Setup objects needed for the bundle's ServiceRequest/Specimen to resolve:
     ...                    title="Serum specimen", Prefix="SER")
     >>> transaction.commit()
 
-A helper to load a fresh copy of the base bundle and find an entry by its
-resource type:
+Helpers to load a fresh copy of the base bundle, find an entry by its
+resource type and post it:
 
     >>> def load_bundle():
     ...     raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
@@ -69,13 +69,6 @@ resource type:
     ...     browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
     ...                  content_type="application/json")
     ...     return browser.headers["Status"], json.loads(browser.contents)
-
-    >>> def error_text(outcome):
-    ...     return outcome["issue"][0]["details"]["text"]
-
-    >>> def no_clients_created():
-    ...     portal._p_jar.sync()
-    ...     return len(portal.clients.objectValues("Client")) == 0
 
 
 

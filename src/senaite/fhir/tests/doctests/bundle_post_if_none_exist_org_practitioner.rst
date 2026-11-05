@@ -96,10 +96,10 @@ Same for the Practitioner, referenced from ServiceRequest.requester:
 Setup objects
 ~~~~~~~~~~~~~
 
-Same fixture as `bundle_post_identifiers`/`bundle_post_if_none_exist` --
-the default Client the bundle's own Organization entry already carries an
-external id for (`ORG-RMH-MEL`), plus the AnalysisServices/SampleType the
-ServiceRequest and Specimen need to succeed:
+Same fixture as `bundle_post_if_none_exist` -- the default Client the bundle's
+own Organization entry already carries an external id for (`ORG-RMH-MEL`), plus
+the AnalysisServices/SampleType the ServiceRequest and Specimen need to
+succeed:
 
     >>> client = api.create(portal.clients, "Client",
     ...                     ClientID="ORG-RMH-MEL")
@@ -232,8 +232,8 @@ A Contact already exists under the default Client:
     >>> transaction.commit()
     >>> before = len(client.getContacts())
 
-This is the same match `bundle_post_identifiers` already exercises via the
-always-on `ContactFinder` fallback -- here it's driven explicitly by
+This is the same match `bundle_post_existing_objects` already exercises via
+the always-on `ContactFinder` fallback -- here it's driven explicitly by
 `ifNoneExist` instead, a different code path with the same outcome:
 
     >>> bundle = load_bundle()

@@ -2,9 +2,9 @@ FHIR Bundle POST (ServiceRequest/Specimen identifier validation)
 ----------------------------------------------------------------
 
 Tests the identifiers pattern for the `ServiceRequest` and its `Specimen`
-(`ResourceToAnalysisRequest.validate_identifiers()`). The resources are
-validated before anything is processed, so an invalid bundle is rejected as a
-whole:
+(`ResourceToAnalysisRequest.validate_identifiers()`). Each resource is
+validated before its counterpart is searched or created, and a violation rolls
+back the whole bundle:
 
 1. **Rejection of usual identifier in ServiceRequest**: when a `ServiceRequest`
    carries an identifier with `use="usual"`, the bundle is rejected with
@@ -195,10 +195,9 @@ No AnalysisRequest is created:
 Rejection: ServiceRequest with an identifier under any other `use`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A `ServiceRequest` must not carry an identifier at all. An identifier with
-`use="official"` (neither `usual` nor `secondary`) is still rejected, just
-with a more generic message, since neither of the two specific checks above
-recognizes it:
+A `ServiceRequest` must not carry an identifier at all, so one with
+`use="official"` (neither `usual` nor `secondary`) is rejected with the same
+message:
 
     >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
     >>> bundle = json.loads(raw)
@@ -407,7 +406,8 @@ When a `Bundle` carries no identifiers on either `ServiceRequest` or
     >>> response["type"]
     u'transaction-response'
 
-The AnalysisRequest is created without a ClientSampleID:
+The same ServiceRequest resolves to the AnalysisRequest created above, which
+is updated and no longer has a ClientSampleID:
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")

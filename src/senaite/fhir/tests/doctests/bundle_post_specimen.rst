@@ -59,7 +59,7 @@ Setup objects (without SampleType)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create the Client and analysis services so the bundle can be fully resolved –
-except the `SampleType`, which is left out intentionally for the pre-flight
+except the `SampleType`, which is left out intentionally for the rejection
 test:
 
     >>> client = api.create(portal.clients, "Client",

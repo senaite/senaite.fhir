@@ -3,7 +3,7 @@ FHIR Bundle POST (Patient/Organization/Practitioner identifier validation)
 
 Tests the identifiers pattern (internal and external identifiers) for the
 `Patient`, `Organization` and `Practitioner` (`ResourceToPatient`,
-`ResourceToOrganisation` and `ResourceToContact`). See
+`ResourceToClient` and `ResourceToContact`). See
 `bundle_post_order_identifiers` for the `ServiceRequest` and `Specimen`:
 
 1. **Rejection of usual identifier**: a `Patient`, `Organization` or
@@ -13,8 +13,7 @@ Tests the identifiers pattern (internal and external identifiers) for the
 2. **Rejection of external identifier with no/unsupported system**: a
    `use="secondary"` identifier with no `system`, or one other than the
    type's fixed default `NamingSystem`, is rejected, each with its own
-   message. Every external
-   identifier is checked, whatever its position.
+   message. Every external identifier is checked, whatever its position.
 
 3. **Rejection of identifiers that are not `use="secondary"`**: any
    identifier other than an internal (`usual`) one must have

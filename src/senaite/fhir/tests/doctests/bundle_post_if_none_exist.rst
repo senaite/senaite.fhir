@@ -8,7 +8,8 @@ either that type's internal (`...-id`) or external
 (`...-mrn`/`...-external-id`) default `NamingSystem`
 (`senaite.fhir.conditions.MATCH_TABLE`). Zero matches creates as normal.
 Exactly one match is treated as already-satisfied: the submitted body is
-discarded entirely and the existing object is left untouched. More than one
+validated but not applied, and the existing object is only linked to the
+entry's placeholder id, its fields left untouched. More than one
 match cannot be safely evaluated and rejects the whole transaction with
 `412 Precondition Failed`. A malformed `ifNoneExist` (missing or
 unrecognized identifier system, or no value) rejects it with `400 Bad
@@ -220,7 +221,7 @@ A Patient already exists, independently of anything the bundle carries:
     >>> before = patient_count()
 
 `ifNoneExist` matches it by MRN. The bundle's own Patient body (still
-James Nguyen / MRN-20394857 from the fixture) is never even looked at:
+James Nguyen / MRN-20394857 from the fixture) is validated but not applied:
 
     >>> bundle = load_bundle()
     >>> set_patient_id(bundle, "b2b2b2b2-b2b2-5b2b-9b2b-b2b2b2b2b2b2")
