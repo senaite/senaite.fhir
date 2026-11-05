@@ -127,7 +127,7 @@ The Patient's family and given name match the reference:
     >>> list(res_name["given"]) == list(ref_name["given"])
     True
 
-The MRN (``PAT-001``) and the secondary identifier (``123456``) from the
+The MRN (``PAT-001``) and the additional identifier (``123456``) from the
 reference are present in the FHIR response:
 
     >>> def identifier_values(identifiers):
@@ -154,6 +154,15 @@ external, ``secondary`` identifier:
     u'secondary'
     >>> mrn_identifier["value"]
     u'PAT-001'
+
+The MRN is the only ``secondary`` identifier, as the profile slices
+``identifier`` by ``use``. The additional identifiers come after it, without
+``use``:
+
+    >>> [i.get("use") for i in resource["identifier"]]
+    [u'usual', u'secondary', None]
+    >>> resource["identifier"][2]["value"]
+    u'123456'
 
 
 The FHIR resource ``id`` is a separate UUID generated on first fetch;

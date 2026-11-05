@@ -74,11 +74,12 @@ class PatientToResource(object):
             to_fhir_id(
                 PATIENT_MRN_SYSTEM, self.patient.getMRN(), use="secondary")
         ]
-        # secondary identifiers
+        # additional identifiers of the patient (e.g. a national id), without
+        # `use`. The profile slices `identifier` by `use`, and the MRN is the
+        # only external (`secondary`) identifier of the patient
         for key, value in self.patient.get_identifier_items():
             sys_id = fapi.slugify(key)
-            fhir_id = to_fhir_id(sys_id, value, use="secondary")
-            identifiers.append(fhir_id)
+            identifiers.append(to_fhir_id(sys_id, value))
         # remove empties
         return list(filter(None, identifiers))
 
