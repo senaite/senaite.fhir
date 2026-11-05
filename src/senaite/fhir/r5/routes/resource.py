@@ -112,6 +112,7 @@ def post(context, request, resource_type=None):
             return get_validation_outcome(request, e)
 
     entries = []
+    issues = []
     for resource in resources:
 
         # Skip if creation or update of this resource is not supported
@@ -135,6 +136,10 @@ def post(context, request, resource_type=None):
                 if obj:
                     fapi.link_fhir_resource(obj, resource)
                     status = "200 OK"
+                    # warn if the discarded body names another identifier
+                    issue = conditions.get_if_none_exist_warning(resource, obj)
+                    if issue:
+                        issues.append(issue)
                 else:
                     obj = fapi.create(resource)
                     status = "201 Created"
@@ -213,6 +218,11 @@ def post(context, request, resource_type=None):
         "type": "transaction-response",
         "entry": entries,
     }
+    if issues:
+        resp["issues"] = {
+            "resourceType": "OperationOutcome",
+            "issue": issues,
+        }
     return BundleResponseResource(resp)
 
 

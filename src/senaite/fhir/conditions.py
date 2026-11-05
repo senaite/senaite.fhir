@@ -151,3 +151,44 @@ def find_by_if_none_exist(resource, raw):
             expression=expression, code="multiple-matches")
 
     return api.get_object(brains[0]) if brains else None
+
+
+def get_if_none_exist_warning(resource, obj):
+    """Returns an OperationOutcome issue warning that the external identifier
+    of the resource differs from the one of the object its ifNoneExist
+    matched, or None when they are the same or the resource carries none.
+
+    A match discards the resource, so the identifier it carries is not
+    applied. That may be on purpose (e.g. the consumer corrected the MRN on
+    its side and matches by the old one) or a mistake in the condition, which
+    links the bundle to another Patient. SENAITE cannot tell one from the
+    other, so it accepts the match and warns the consumer.
+
+    :param resource: the FHIR resource whose ifNoneExist matched `obj`
+    :param obj: the content object matched by `find_by_if_none_exist`
+    :returns: an OperationOutcome issue dict, or None
+    """
+    external_id = resource.get_external_id()
+    if not external_id:
+        return None
+
+    # read the identifier the same way the match does: from the index
+    resource_type = resource.resourceType
+    catalog_id, _, _, external_index = MATCH_TABLE[resource_type]
+    catalog = api.get_tool(catalog_id)
+    index_data = catalog.getIndexDataForUID(api.get_path(obj))
+    matched_value = index_data.get(external_index) or None
+    if matched_value == external_id.value:
+        return None
+
+    return {
+        "severity": "warning",
+        "code": "business-rule",
+        "details": {
+            "text": "ifNoneExist matched an existing {0} with identifier "
+                    "{1}, but the {0} in the request carries {2}. The {0} in "
+                    "the request was not applied"
+                    .format(resource_type, matched_value, external_id.value),
+        },
+        "expression": ["{}.identifier".format(resource_type)],
+    }

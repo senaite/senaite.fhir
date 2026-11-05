@@ -235,6 +235,24 @@ James Nguyen / MRN-20394857 from the fixture) is never even looked at:
     >>> entry_status(response, "Patient")
     u'200 OK'
 
+The body carries another MRN than the matched Patient. This may be on
+purpose, e.g. the MRN was corrected at the source and the consumer matches by
+the old one, or a mistake in the condition. SENAITE cannot tell, so it accepts
+the match and returns a warning in the Bundle's ``issues``:
+
+    >>> issue = response["issues"]["issue"][0]
+    >>> issue["severity"], issue["code"]
+    (u'warning', u'business-rule')
+    >>> issue["expression"]
+    [u'Patient.identifier']
+    >>> text = issue["details"]["text"]
+    >>> "matched an existing Patient with identifier MRN-PRE-EXISTING" in text
+    True
+    >>> "the Patient in the request carries MRN-20394857" in text
+    True
+    >>> "The Patient in the request was not applied" in text
+    True
+
 No duplicate was created, and the existing Patient's own fields (name, MRN)
 are untouched -- the submitted body was discarded, not applied:
 
@@ -292,6 +310,43 @@ consumer's MRN:
     True
     >>> existing2.getFirstname()
     'Existing2'
+
+The warning compares with the matched Patient's MRN whatever system the
+condition uses, so a match by internal id warns too:
+
+    >>> issue = response["issues"]["issue"][0]
+    >>> "with identifier MRN-PRE-EXISTING-2, but the Patient in the request " \
+    ...     "carries MRN-20394857" in issue["details"]["text"]
+    True
+
+
+Success: a match on the Patient's own MRN does not warn
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When the body carries the matched Patient's MRN, there is nothing to warn
+about and the Bundle has no ``issues``:
+
+    >>> existing5 = api.create(portal.patients, "Patient",
+    ...                        mrn=u"MRN-SAME",
+    ...                        firstname=u"Existing5", lastname=u"Patient")
+    >>> transaction.commit()
+
+    >>> bundle = load_bundle()
+    >>> set_patient_id(bundle, "e5e5e5e5-e5e5-5e5e-9e5e-e5e5e5e5e5e5")
+    >>> entry = get_entry(bundle, "Patient")
+    >>> for identifier in entry["resource"]["identifier"]:
+    ...     if identifier.get("use") == "secondary":
+    ...         identifier["value"] = u"MRN-SAME"
+    >>> entry["request"]["ifNoneExist"] = (
+    ...     "identifier=https://fhir.senaite.org/NamingSystem/patient-mrn"
+    ...     "|MRN-SAME")
+    >>> status, response = post_bundle(bundle)
+    >>> status
+    '200 OK'
+    >>> entry_status(response, "Patient")
+    u'200 OK'
+    >>> "issues" in response
+    False
 
 
 Rejection: a match carrying invalid identifiers
