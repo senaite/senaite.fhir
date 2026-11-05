@@ -103,6 +103,14 @@ def post(context, request, resource_type=None):
     # get the FHIR resources from the request
     resources = get_fhir_resources()
 
+    # reject the conditional creates of resource types that do not support
+    # them, before anything is processed
+    for resource in resources:
+        try:
+            conditions.validate_if_none_exist(resource)
+        except ResourceValidationError as e:
+            return get_validation_outcome(request, e)
+
     entries = []
     for resource in resources:
 
@@ -139,22 +147,7 @@ def post(context, request, resource_type=None):
                     obj = fapi.update(obj, resource)
                     status = "200 OK"
         except ResourceValidationError as e:
-            transaction.abort()
-            code = getattr(e, "code", "business-rule")
-            status_code = 400
-            if code == "conflict":
-                status_code = 409
-            elif code == "multiple-matches":
-                status_code = 412
-
-            request.response.setStatus(status_code)
-            issue = {
-                "severity": "error",
-                "code": code,
-                "details": {"text": str(e)},
-                "expression": e.expression,
-            }
-            return OperationOutcome({"issue": [issue]})
+            return get_validation_outcome(request, e)
         except Exception:
             # Unexpected failure: roll back the whole bundle (all-or-none),
             # log the details server-side and return a generic error. Never
@@ -221,6 +214,32 @@ def post(context, request, resource_type=None):
         "entry": entries,
     }
     return BundleResponseResource(resp)
+
+
+def get_validation_outcome(request, error):
+    """Rolls back the transaction and returns the OperationOutcome for the
+    given ResourceValidationError, with the HTTP status that matches its
+    issue code
+
+    :param request: the current request
+    :param error: the ResourceValidationError raised
+    """
+    transaction.abort()
+    code = getattr(error, "code", "business-rule")
+    status_code = 400
+    if code == "conflict":
+        status_code = 409
+    elif code == "multiple-matches":
+        status_code = 412
+
+    request.response.setStatus(status_code)
+    issue = {
+        "severity": "error",
+        "code": code,
+        "details": {"text": str(error)},
+        "expression": error.expression,
+    }
+    return OperationOutcome({"issue": [issue]})
 
 
 def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):

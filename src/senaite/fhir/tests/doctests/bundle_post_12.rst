@@ -6,7 +6,7 @@ to end for ``Patient``) with spot-checks for ``Organization`` and
 ``Practitioner``, plus two cross-cutting edge cases: more than one match
 (412, whole bundle rejected) and a stray ``ifNoneExist`` on a resource type
 that doesn't support it (``ServiceRequest``/``Specimen`` are ``0..0`` per the
-IG -- silently ignored rather than rejected).
+IG -- rejected with 400, whole bundle rejected).
 
 Running this test from the buildout directory:
 
@@ -126,29 +126,53 @@ and Specimen need to succeed:
     >>> transaction.commit()
 
 
-Edge case: a stray ifNoneExist on ServiceRequest is silently ignored
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Rejection: a stray ifNoneExist on ServiceRequest or Specimen
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``ServiceRequest`` (and ``Specimen``) never carry ``ifNoneExist`` per the IG
--- both are created fresh on every order. SENAITE doesn't enforce that as a
-hard profile violation; it simply never looks at ``ifNoneExist`` for these
-two types, so the bundle processes normally:
+``ServiceRequest`` and ``Specimen`` never carry ``ifNoneExist`` per the IG
+(``0..0``) -- both are created fresh on every order. A bundle where any of
+them declares one is rejected with 400, before anything is processed, rather
+than silently ignoring it:
+
+    >>> portal._p_jar.sync()
+    >>> samples_before = len(client.objectValues("AnalysisRequest"))
 
     >>> bundle = load_bundle()
     >>> set_sr_id(bundle, "e1e1e1e1-e1e1-5e1e-9e1e-e1e1e1e1e1e1")
     >>> entry = get_entry(bundle, "ServiceRequest")
     >>> entry["request"]["ifNoneExist"] = (
     ...     "identifier=https://fhir.senaite.org/NamingSystem/sample-id"
-    ...     "|SHOULD-BE-IGNORED")
-    >>> status, response = post_bundle(bundle)
+    ...     "|SHOULD-BE-REJECTED")
+    >>> status, outcome = post_bundle(bundle)
     >>> status
-    '200 OK'
-    >>> entry_status(response, "ServiceRequest")
-    u'201 Created'
+    '400 Bad Request'
+    >>> issue = outcome["issue"][0]
+    >>> issue["code"]
+    u'invalid'
+    >>> issue["expression"]
+    [u'ServiceRequest.request.ifNoneExist']
+    >>> issue["details"]["text"]
+    u'ifNoneExist is not supported for ServiceRequest'
+
+The same for a ``Specimen``:
+
+    >>> bundle = load_bundle()
+    >>> set_sr_id(bundle, "e1e1e1e1-e1e1-5e1e-9e1e-e1e1e1e1e1e1")
+    >>> entry = get_entry(bundle, "Specimen")
+    >>> entry["request"]["ifNoneExist"] = (
+    ...     "identifier=https://fhir.senaite.org/NamingSystem/client-sample-id"
+    ...     "|SHOULD-BE-REJECTED")
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> outcome["issue"][0]["expression"]
+    [u'Specimen.request.ifNoneExist']
+
+No Sample was created:
 
     >>> portal._p_jar.sync()
-    >>> len(client.objectValues("AnalysisRequest"))
-    1
+    >>> len(client.objectValues("AnalysisRequest")) == samples_before
+    True
 
 
 Success: Organization matched by external id (ClientID) discards the body
@@ -162,6 +186,8 @@ A second, unrelated Client already exists:
     >>> existing_org.reindexObject()
     >>> transaction.commit()
     >>> before = client_count()
+    >>> portal._p_jar.sync()
+    >>> default_samples = len(client.objectValues("AnalysisRequest"))
 
 ``ifNoneExist`` matches it by ``ClientID``, not the default ``client``
 fixture (which the bundle's own Organization body still names):
@@ -193,10 +219,8 @@ fixture:
     >>> portal._p_jar.sync()
     >>> len(existing_org.objectValues("AnalysisRequest"))
     1
-    >>> len(client.objectValues("AnalysisRequest"))
-    1
-
-(``1`` from the previous scenario, unchanged by this one.)
+    >>> len(client.objectValues("AnalysisRequest")) == default_samples
+    True
 
 
 Success: Practitioner matched by external id via ifNoneExist

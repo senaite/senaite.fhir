@@ -32,9 +32,7 @@ MATCH_TABLE = {
 def get_if_none_exist(resource):
     """Returns the raw `ifNoneExist` string declared on the bundle entry of
     the given resource, or None when absent, the resource type is not one
-    SENAITE evaluates ifNoneExist for (Specimen/ServiceRequest carry
-    `request.ifNoneExist 0..0` per the IG -- silently ignored here, same as
-    every other resource type this module doesn't recognize), or the
+    SENAITE evaluates ifNoneExist for (see `validate_if_none_exist`), or the
     resource isn't part of a bundle at all (e.g. a standalone POST /Patient,
     which has no entry.request to begin with).
 
@@ -43,10 +41,41 @@ def get_if_none_exist(resource):
     """
     if resource.resourceType not in MATCH_TABLE:
         return None
+    return get_raw_if_none_exist(resource)
+
+
+def get_raw_if_none_exist(resource):
+    """Returns the raw `ifNoneExist` string declared on the bundle entry of
+    the given resource, whatever its type, or None when absent or when the
+    resource isn't part of a bundle
+
+    :param resource: the FHIR resource of a bundle entry
+    :returns: the raw ifNoneExist value, or None
+    """
     bundle = resource.get("_bundle")
     if not bundle:
         return None
     return bundle.get_request(resource).get("ifNoneExist")
+
+
+def validate_if_none_exist(resource):
+    """Raises a ResourceValidationError if the bundle entry of the resource
+    declares an `ifNoneExist` but its type does not support conditional
+    create. Only the types in `MATCH_TABLE` do: the profile does not allow
+    `request.ifNoneExist` for the others (e.g. ServiceRequest and Specimen,
+    `0..0`), as they are created on every order
+
+    :param resource: the FHIR resource of a bundle entry
+    """
+    if resource.resourceType in MATCH_TABLE:
+        return
+    if not get_raw_if_none_exist(resource):
+        return
+    resource_type = resource.resourceType
+    raise ResourceValidationError(
+        "ifNoneExist is not supported for {}".format(resource_type),
+        expression=["{}.request.ifNoneExist".format(resource_type)],
+        code="invalid")
 
 
 def parse_if_none_exist(raw):
