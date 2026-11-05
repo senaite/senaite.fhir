@@ -24,10 +24,14 @@ class ResourceToOrganisation(ResourceToContent):
         if not name:
             raise ValueError("%r: No Name" % self.resource)
 
-        data = {"Name": name}
+        # The title of an Organisation is its Name, and core's `api.create`
+        # always sets the title (empty when none is given), which would wipe
+        # the Name. Pass the name as title as well, so it is kept whatever
+        # the order the fields are set in
+        data = {"Name": name, "title": name}
 
-        # Addresses
-        address = self.get_address()
+        # Addresses (an Organization may carry no contact with an address)
+        address = self.get_address() or {}
         if address.get("type") == PHYSICAL_ADDRESS:
             data["PhysicalAddress"] = address
         elif address.get("type") == POSTAL_ADDRESS:
