@@ -262,6 +262,34 @@ No AnalysisRequest is created:
     0
 
 
+Rejection: Specimen with an external identifier carrying no system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    >>> bundle = json.loads(raw)
+    >>> specimen_entry = [e for e in bundle["entry"]
+    ...                   if e["resource"]["resourceType"] == "Specimen"][0]
+    >>> specimen_entry["resource"]["identifier"] = [
+    ...     {
+    ...         "use": "secondary",
+    ...         "value": "EXT-NO-SYSTEM"
+    ...     }
+    ... ]
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> text = json.loads(browser.contents)["issue"][0]["details"]["text"]
+    >>> "Missing identifier system in Specimen" in text
+    True
+
+No AnalysisRequest is created:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    0
+
+
 Rejection: Specimen with an internal identifier under another use
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

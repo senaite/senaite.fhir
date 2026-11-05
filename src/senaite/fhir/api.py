@@ -737,6 +737,11 @@ def validate_external_identifier(resource):
             ).format(resource.resourceType, identifier.use)
             raise IdentifierValidationError(resource, msg)
 
+        if not identifier.system:
+            msg = "Missing identifier system in {}".format(
+                resource.resourceType)
+            raise IdentifierValidationError(resource, msg)
+
         if identifier.system != system:
             msg = (
                 "Unsupported identifier system in {}: {}"

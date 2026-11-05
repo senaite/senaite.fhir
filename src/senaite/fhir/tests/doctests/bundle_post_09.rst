@@ -12,7 +12,8 @@ now applied to `ResourceToPatient`, `ResourceToOrganisation` and
 
 2. **Rejection of external identifier with no/unsupported system**: a
    `use="secondary"` identifier with no `system`, or one other than the
-   type's fixed default `NamingSystem`, is rejected. Every external
+   type's fixed default `NamingSystem`, is rejected, each with its own
+   message. Every external
    identifier is checked, whatever its position.
 
 3. **Rejection of identifiers that are not `use="secondary"`**: any
@@ -125,7 +126,7 @@ Rejection: Patient with an external identifier carrying no system
     >>> status, outcome = post_bundle(bundle)
     >>> status
     '400 Bad Request'
-    >>> "Unsupported identifier system in Patient" in error_text(outcome)
+    >>> "Missing identifier system in Patient" in error_text(outcome)
     True
     >>> no_clients_created()
     True
@@ -232,6 +233,24 @@ Rejection: Organization with an unsupported external identifier system
     True
 
 
+Rejection: Organization with an external identifier carrying no system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Organization")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "use": "secondary",
+    ...     "value": "ORG-NO-SYSTEM"
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Missing identifier system in Organization" in error_text(outcome)
+    True
+    >>> no_clients_created()
+    True
+
+
 Rejection: Practitioner with a usual identifier
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -265,7 +284,7 @@ Rejection: Practitioner with an external identifier carrying no system
     >>> status, outcome = post_bundle(bundle)
     >>> status
     '400 Bad Request'
-    >>> "Unsupported identifier system in Practitioner" in error_text(outcome)
+    >>> "Missing identifier system in Practitioner" in error_text(outcome)
     True
     >>> no_clients_created()
     True
