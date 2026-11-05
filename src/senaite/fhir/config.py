@@ -126,7 +126,9 @@ SPECIMEN_STATUSES = (
 
 # Elements of a secondary FHIR resource that are owned by SENAITE. The stored
 # snapshot keeps what the consumer submitted, but these elements are always
-# taken from the live content when the resource is read
+# taken from the live content when the resource is read. For `extension`,
+# only the extensions SENAITE synthesizes are owned (matched by url): the
+# others in the snapshot are kept
 SERVER_OWNED_ELEMENTS = (
     ("Specimen", ("identifier", "status", "extension")),
 )

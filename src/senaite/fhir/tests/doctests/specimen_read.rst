@@ -253,6 +253,10 @@ its own FHIR id returns the stored data rather than the on-the-fly synthesis:
     ...     "extension": [{
     ...         "url": "https://example.org/StructureDefinition/keep-me",
     ...         "valueString": "preserved",
+    ...     }, {
+    ...         "url": "https://fhir.senaite.org/StructureDefinition/"
+    ...                "SenaiteSpecimenBarcode",
+    ...         "valueString": "stale",
     ...     }],
     ... })
     >>> fapi.link_fhir_resource(sample, stored_specimen, secondary=True)
@@ -269,10 +273,19 @@ resource:
     u'b1234567-89ab-cdef-0123-456789abcdef'
     >>> ann["type"]["coding"][0]["display"]
     u'Serum specimen'
-    >>> len(ann["extension"])
-    1
-    >>> ann["extension"][0]["url"]
-    u'https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode'
+
+SENAITE only owns its own extensions. The consumer's extension is kept, and
+the barcode is always the live one, never the one in the stored data:
+
+    >>> [extension["url"] for extension in ann["extension"]]
+    [u'https://example.org/StructureDefinition/keep-me',
+     u'https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode']
+    >>> ann["extension"][0]["valueString"]
+    u'preserved'
+    >>> ann["extension"][1]["valueAttachment"]["contentType"]
+    u'image/svg+xml'
+    >>> "valueString" in ann["extension"][1]
+    False
 
 Once the annotation is in place, fetching by the original AR-based Specimen
 id also returns the stored resource, because the annotation store takes
