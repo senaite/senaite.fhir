@@ -9,7 +9,7 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.config import FHIR_BASE_URL
-from senaite.fhir.exceptions import ServiceRequestValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from zope.deprecation import deprecate
 
 
@@ -57,7 +57,7 @@ def reject_internal_identifier(resource, resource_name):
             "Cannot specify usual identifier externally in incoming "
             "{}:{}"
         ).format(resource_name, object_id.value)
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             msg,
             expression=["{}.identifier".format(resource_name)],
             code="invalid",
@@ -78,7 +78,7 @@ def validate_external_identifier(resource, resource_name, valid_system=None):
                 "Cannot specify external identifier in "
                 "{}:{}"
             ).format(resource_name, external_id.value)
-            raise ServiceRequestValidationError(
+            raise ResourceValidationError(
                 msg,
                 expression=["{}.identifier".format(resource_name)],
                 code="invalid",
@@ -87,7 +87,7 @@ def validate_external_identifier(resource, resource_name, valid_system=None):
             msg = (
                 "Unsupported identifier system in {}: {}"
             ).format(resource_name, external_id.system)
-            raise ServiceRequestValidationError(
+            raise ResourceValidationError(
                 msg,
                 expression=["{}.identifier".format(resource_name)],
                 code="invalid",
@@ -107,7 +107,7 @@ def reject_any_identifier(resource, resource_name):
     identifiers = getattr(resource, "identifier", None)
     if identifiers:
         msg = "Cannot specify any identifier in {}".format(resource_name)
-        raise ServiceRequestValidationError(
+        raise ResourceValidationError(
             msg,
             expression=["{}.identifier".format(resource_name)],
             code="invalid",

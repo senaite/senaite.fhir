@@ -19,21 +19,25 @@ class FHIRAPIError(APIError):
         Exception.__init__(self, message)
 
 
-class ServiceRequestValidationError(Exception):
+class ResourceValidationError(Exception):
+    """Raised when an incoming FHIR resource violates validation rules
+
+    :param message: human-readable description of the issue
+    :param expression: FHIRPath expressions of the elements in error
+    :param code: OperationOutcome issue type (e.g. `invalid`, `conflict`)
+    """
+
+    def __init__(self, message, expression=None, code="business-rule"):
+        super(ResourceValidationError, self).__init__(message)
+        self.expression = expression or []
+        self.code = code
+
+
+class ServiceRequestValidationError(ResourceValidationError):
     """Raised when a ServiceRequest violates validation rules
     """
 
-    def __init__(self, message, expression=None, code="business-rule"):
-        super(ServiceRequestValidationError, self).__init__(message)
-        self.expression = expression or []
-        self.code = code
 
-
-class ObservationValidationError(Exception):
+class ObservationValidationError(ResourceValidationError):
     """Raised when an Observation violates validation rules
     """
-
-    def __init__(self, message, expression=None, code="business-rule"):
-        super(ObservationValidationError, self).__init__(message)
-        self.expression = expression or []
-        self.code = code
