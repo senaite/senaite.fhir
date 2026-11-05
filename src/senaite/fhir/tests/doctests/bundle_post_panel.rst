@@ -10,13 +10,13 @@ Preconditions:
 
 - the *Electrolyte Panel* `AnalysisProfile` exists (profile key `55231-5`,
   with the three services);
-- the *Cayman Islands Health Services Authority* Client exists;
+- the *Harbour Island Health Authority* Client exists;
 - the *Serum* SampleType exists;
 - the Patient, the Practitioner and the ServiceRequest do **not** exist yet.
 
 Expected: a new electrolyte Sample is created, a new Patient (Adaeze Chisom
-Okonkwo) and a new Practitioner/Contact (Dr. Thabo Mbeki, under the Cayman
-client).
+Okonkwo) and a new Practitioner/Contact (Dr. Sipho Dlamini, under the Harbour
+Island client).
 
 Running this test from the buildout directory:
 
@@ -87,8 +87,8 @@ The Client (matched by the Organization's `ClientID`) and the Serum
 SampleType (matched by the Specimen's SNOMED display)::
 
     >>> client = api.create(portal.clients, "Client",
-    ...                     Name="Cayman Islands Health Services Authority",
-    ...                     ClientID="ORG-HLTH-CYM-001")
+    ...                     Name="Harbour Island Health Authority",
+    ...                     ClientID="ORG-HLTH-HBI-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
     >>> transaction.commit()
@@ -140,14 +140,15 @@ A new Patient (Adaeze Chisom Okonkwo)::
     >>> patients[0].getFullname()
     'Adaeze Chisom Okonkwo'
 
-A new Practitioner/Contact (Dr. Thabo Mbeki) under the Cayman client::
+A new Practitioner/Contact (Dr. Sipho Dlamini) under the Harbour Island
+client::
 
     >>> contacts = [obj for obj in client.objectValues()
     ...             if api.get_portal_type(obj) == "Contact"]
     >>> len(contacts)
     1
     >>> contacts[0].getFullname()
-    'Thabo Mbeki'
+    'Sipho Dlamini'
 
 A new electrolyte Sample, with the resolved profile and its three analyses::
 

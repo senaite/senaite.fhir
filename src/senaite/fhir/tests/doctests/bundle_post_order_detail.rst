@@ -88,8 +88,8 @@ The *Electrolyte Panel* profile (Cl, K, Na), keyed by its LOINC code:
 Client and SampleType:
 
     >>> client = api.create(portal.clients, "Client",
-    ...                     Name="Cayman Islands Health Services Authority",
-    ...                     ClientID="ORG-HLTH-CYM-001")
+    ...                     Name="Harbour Island Health Authority",
+    ...                     ClientID="ORG-HLTH-HBI-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
     >>> transaction.commit()

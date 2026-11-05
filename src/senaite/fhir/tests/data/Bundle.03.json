@@ -42,7 +42,7 @@
         "telecom": [
           {
             "system": "phone",
-            "value": "+1-345-555-0193",
+            "value": "+1-555-555-0193",
             "use": "mobile"
           }
         ],
@@ -52,8 +52,8 @@
             "line": [
               "14 Harbour View Road"
             ],
-            "city": "George Town",
-            "country": "KY"
+            "city": "Port Harbour",
+            "country": "XX"
           }
         ],
         "maritalStatus": {
@@ -84,22 +84,22 @@
           {
             "use": "secondary",
             "system": "https://fhir.senaite.org/NamingSystem/organization-external-id",
-            "value": "ORG-HLTH-CYM-001"
+            "value": "ORG-HLTH-HBI-001"
           }
         ],
         "active": true,
-        "name": "Cayman Islands Health Services Authority",
+        "name": "Harbour Island Health Authority",
         "contact": [
           {
             "telecom": [
               {
                 "system": "phone",
-                "value": "+1-345-555-0140",
+                "value": "+1-555-555-0140",
                 "use": "work"
               },
               {
                 "system": "email",
-                "value": "labservices@hsa.ky",
+                "value": "labservices@hiha.example.org",
                 "use": "work"
               }
             ],
@@ -109,8 +109,8 @@
               "line": [
                 "Hospital Road"
               ],
-              "city": "George Town",
-              "country": "KY"
+              "city": "Port Harbour",
+              "country": "XX"
             }
           }
         ]
@@ -133,16 +133,16 @@
           {
             "use": "secondary",
             "system": "https://fhir.senaite.org/NamingSystem/practitioner-external-id",
-            "value": "PRACT-DR-MBEKI"
+            "value": "PRACT-DR-DLAMINI"
           }
         ],
         "active": true,
         "name": [
           {
             "use": "official",
-            "family": "Mbeki",
+            "family": "Dlamini",
             "given": [
-              "Thabo"
+              "Sipho"
             ],
             "prefix": [
               "Dr."
@@ -157,12 +157,12 @@
         "telecom": [
           {
             "system": "email",
-            "value": "t.mbeki@hsa.ky",
+            "value": "s.dlamini@hiha.example.org",
             "use": "work"
           },
           {
             "system": "phone",
-            "value": "+1-345-555-0201",
+            "value": "+1-555-555-0201",
             "use": "work"
           }
         ],
@@ -171,10 +171,10 @@
             "use": "work",
             "line": [
               "Department of Internal Medicine",
-              "Cayman Islands Hospital, Hospital Road"
+              "Harbour Island Hospital, Hospital Road"
             ],
-            "city": "George Town",
-            "country": "KY"
+            "city": "Port Harbour",
+            "country": "XX"
           }
         ]
       },

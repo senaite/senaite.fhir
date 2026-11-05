@@ -51,8 +51,8 @@ Serum SampleType, and the single ordered analysis (Magnesium, matched by
 `ProtocolID`):
 
     >>> client = api.create(portal.clients, "Client",
-    ...                     Name="Cayman Islands Health Services Authority",
-    ...                     ClientID="ORG-HLTH-CYM-001")
+    ...                     Name="Harbour Island Health Authority",
+    ...                     ClientID="ORG-HLTH-HBI-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,

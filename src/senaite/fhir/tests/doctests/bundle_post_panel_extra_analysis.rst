@@ -83,8 +83,8 @@ Sodium)::
 The Client and the Serum SampleType::
 
     >>> client = api.create(portal.clients, "Client",
-    ...                     Name="Cayman Islands Health Services Authority",
-    ...                     ClientID="ORG-HLTH-CYM-001")
+    ...                     Name="Harbour Island Health Authority",
+    ...                     ClientID="ORG-HLTH-HBI-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
     >>> transaction.commit()
@@ -122,7 +122,7 @@ Created content
     >>> portal._p_jar.sync()
 
 A new Patient (Adaeze Chisom Okonkwo) and a new Practitioner/Contact (Dr.
-Thabo Mbeki, under the Cayman client)::
+Sipho Dlamini, under the Harbour Island client)::
 
     >>> patients = [obj for obj in portal.patients.objectValues()
     ...             if api.get_portal_type(obj) == "Patient"]
@@ -137,7 +137,7 @@ Thabo Mbeki, under the Cayman client)::
     1
     >>> numbers[0]["name"] == "mobile"
     True
-    >>> numbers[0]["phone"] == "+1-345-555-0193"
+    >>> numbers[0]["phone"] == "+1-555-555-0193"
     True
 
     >>> contacts = [obj for obj in client.objectValues()
@@ -145,7 +145,7 @@ Thabo Mbeki, under the Cayman client)::
     >>> len(contacts)
     1
     >>> contacts[0].getFullname()
-    'Thabo Mbeki'
+    'Sipho Dlamini'
 
 A new Sample under the Client, with the *Electrolyte Panel* profile and its
 three tests *plus* the extra Magnesium analysis attached::

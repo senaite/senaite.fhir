@@ -54,8 +54,8 @@ The pre-existing `Client` (matched by the Organization's `ClientID`) and
 the `SampleType` (matched by the Specimen's SNOMED display, `Serum`):
 
     >>> client = api.create(portal.clients, "Client",
-    ...                     Name="Cayman Islands Health Services Authority",
-    ...                     ClientID="ORG-HLTH-CYM-001")
+    ...                     Name="Harbour Island Health Authority",
+    ...                     ClientID="ORG-HLTH-HBI-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
 
@@ -121,7 +121,7 @@ A Patient and a Contact (from the Practitioner) were created:
     >>> contacts = [obj for obj in client.objectValues()
     ...             if api.get_portal_type(obj) == "Contact"]
     >>> contacts[0].getFullname()
-    'Thabo Mbeki'
+    'Sipho Dlamini'
 
 A Sample was created under the Client, with the single ordered analysis and
 the `asap` priority. No analysis profile was assigned -- the unresolved
