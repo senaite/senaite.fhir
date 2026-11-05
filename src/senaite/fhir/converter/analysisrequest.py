@@ -7,6 +7,7 @@ from senaite.fhir.converter import first_by
 from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_profile_url
+from senaite.fhir.converter import to_naming_system_url
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
 from senaite.fhir.converter.person import ResourceToPerson
 from senaite.fhir.exceptions import ServiceRequestValidationError
@@ -173,8 +174,9 @@ class ResourceToAnalysisRequest(ResourceToContent):
 
         specimen = self.get_specimen()
         if specimen:
-            self.validate_internal_identifier(specimen)
-            self.validate_external_identifier("client-sample-id", specimen)
+            fapi.validate_internal_identifier(specimen)
+            system = to_naming_system_url("client-sample-id")
+            fapi.validate_external_identifier(specimen, system)
 
     def to_content_dict(self):
         # TODO We don't validate category + SNOMED code (is necessary?)

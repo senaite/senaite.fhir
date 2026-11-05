@@ -8,8 +8,8 @@ from senaite.core.api import geo
 from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
+from senaite.fhir import api as fapi
 from senaite.fhir.config import FHIR_BASE_URL
-from senaite.fhir.exceptions import IdentifierValidationError
 from senaite.fhir.interfaces import IFHIRToContent
 from zope.deprecation import deprecate
 from zope.interface import implementer
@@ -83,63 +83,12 @@ class ResourceToContent(object):
         whatever its `use`
         """
         if not self.external_id_system:
-            self.validate_no_identifier()
+            fapi.validate_no_identifier(self.resource)
             return
 
-        self.validate_internal_identifier()
-        self.validate_external_identifier(self.external_id_system)
-
-    def validate_no_identifier(self, resource=None):
-        """Raises an IdentifierValidationError if the resource carries any
-        identifier at all, whatever its `use`. For resources that support no
-        identifier, such as ServiceRequest
-
-        :param resource: the resource to validate. Defaults to the one this
-            converter handles
-        """
-        resource = resource or self.resource
-        if resource.identifier:
-            msg = "Cannot specify any identifier in {}".format(
-                resource.resourceType)
-            raise IdentifierValidationError(resource, msg)
-
-    def validate_internal_identifier(self, resource=None):
-        """Raises an IdentifierValidationError if the resource carries an
-        internal (usual) identifier. These are assigned by SENAITE only
-        after creation and can never be supplied by the API consumer
-
-        :param resource: the resource to validate. Defaults to the one this
-            converter handles
-        """
-        resource = resource or self.resource
-        object_id = resource.get_object_id()
-        if object_id:
-            msg = (
-                "Cannot specify usual identifier externally in incoming "
-                "{}:{}"
-            ).format(resource.resourceType, object_id.value)
-            raise IdentifierValidationError(resource, msg)
-
-    def validate_external_identifier(self, system_id, resource=None):
-        """Raises an IdentifierValidationError if the external (secondary)
-        identifier of the resource, if any, has no system or a system other
-        than the NamingSystem with the given id
-
-        :param system_id: id of the NamingSystem the external identifier must
-            have (e.g. `patient-mrn`)
-        :param resource: the resource to validate. Defaults to the one this
-            converter handles
-        """
-        resource = resource or self.resource
-        external_id = resource.get_external_id()
-        if not external_id:
-            return
-
-        if external_id.system != to_naming_system_url(system_id):
-            msg = (
-                "Unsupported identifier system in {}: {}"
-            ).format(resource.resourceType, external_id.system)
-            raise IdentifierValidationError(resource, msg)
+        fapi.validate_internal_identifier(self.resource)
+        system = to_naming_system_url(self.external_id_system)
+        fapi.validate_external_identifier(self.resource, system)
 
 
 def to_fhir_profile_url(resource_type):

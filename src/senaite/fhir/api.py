@@ -22,6 +22,7 @@ from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
 from senaite.fhir.exceptions import FHIRAPIError
+from senaite.fhir.exceptions import IdentifierValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -636,6 +637,54 @@ def can_create_or_update(resource):
                     resource)
         return False
     return True
+
+
+def validate_no_identifier(resource):
+    """Raises an IdentifierValidationError if the resource carries any
+    identifier at all, whatever its `use`. For resources that support no
+    identifier, such as ServiceRequest
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    if resource.identifier:
+        msg = "Cannot specify any identifier in {}".format(
+            resource.resourceType)
+        raise IdentifierValidationError(resource, msg)
+
+
+def validate_internal_identifier(resource):
+    """Raises an IdentifierValidationError if the resource carries an
+    internal (usual) identifier. These are assigned by SENAITE only after
+    creation and can never be supplied by the API consumer
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    object_id = resource.get_object_id()
+    if object_id:
+        msg = (
+            "Cannot specify usual identifier externally in incoming {}:{}"
+        ).format(resource.resourceType, object_id.value)
+        raise IdentifierValidationError(resource, msg)
+
+
+def validate_external_identifier(resource, system):
+    """Raises an IdentifierValidationError if the external (secondary)
+    identifier of the resource, if any, has no system or a system other than
+    the given one
+
+    :param resource: the incoming FHIR resource to validate
+    :param system: URL of the NamingSystem the external identifier must have
+        (e.g. `https://fhir.senaite.org/NamingSystem/patient-mrn`)
+    """
+    external_id = resource.get_external_id()
+    if not external_id:
+        return
+
+    if external_id.system != system:
+        msg = (
+            "Unsupported identifier system in {}: {}"
+        ).format(resource.resourceType, external_id.system)
+        raise IdentifierValidationError(resource, msg)
 
 
 def update(obj, resource):
