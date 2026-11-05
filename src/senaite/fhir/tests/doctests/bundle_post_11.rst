@@ -271,3 +271,55 @@ consumer's MRN:
     True
     >>> existing2.getFirstname()
     'Existing2'
+
+
+Rejection: a match carrying invalid identifiers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The resources are validated before their counterpart object is searched, so
+a conditional create is validated even when its ``ifNoneExist`` matches an
+existing object -- a match does not skip the identifier rules. A Patient that
+matches by MRN, but also carries an internal (``usual``) identifier, which the
+consumer cannot send:
+
+    >>> existing3 = api.create(portal.patients, "Patient",
+    ...                        mrn=u"MRN-MATCH-INVALID",
+    ...                        firstname=u"Existing3", lastname=u"Patient")
+    >>> transaction.commit()
+    >>> before = patient_count()
+    >>> portal._p_jar.sync()
+    >>> samples_before = len(client.objectValues("AnalysisRequest"))
+
+    >>> bundle = load_bundle()
+    >>> set_patient_id(bundle, "d4d4d4d4-d4d4-5d4d-9d4d-d4d4d4d4d4d4")
+    >>> entry = get_entry(bundle, "Patient")
+    >>> entry["request"]["ifNoneExist"] = (
+    ...     "identifier=https://fhir.senaite.org/NamingSystem/patient-mrn"
+    ...     "|MRN-MATCH-INVALID")
+    >>> entry["resource"]["identifier"].append({
+    ...     "use": "usual",
+    ...     "system": "https://fhir.senaite.org/NamingSystem/patient-id",
+    ...     "value": "P-999",
+    ... })
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> issue = outcome["issue"][0]
+    >>> issue["expression"]
+    [u'Patient.identifier']
+    >>> "Cannot specify usual identifier externally in incoming Patient" in (
+    ...     issue["details"]["text"])
+    True
+
+Nothing was linked or created: the bundle's placeholder FHIR id does not
+point to the existing Patient, and no Patient nor Sample was added:
+
+    >>> fapi.get_object_by_fhir_uid(
+    ...     "d4d4d4d4-d4d4-5d4d-9d4d-d4d4d4d4d4d4", "Patient",
+    ...     default=None) is None
+    True
+    >>> patient_count() == before
+    True
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest")) == samples_before
+    True
