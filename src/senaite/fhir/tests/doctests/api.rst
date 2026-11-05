@@ -825,7 +825,8 @@ are skipped::
     ...     "contact": [{"address": {"line": ["1 Main Street"]}}],
     ... })
     >>> sorted(fapi.to_content_dict(organization).keys())
-    ['ClientID', 'Name', 'PhysicalAddress', 'parent_path', 'portal_type']
+    ['ClientID', 'Name', 'PhysicalAddress', 'parent_path', 'portal_type',
+     'title']
     >>> fapi.update(client, organization) == client
     True
     >>> client.getName(), client.getClientID()
