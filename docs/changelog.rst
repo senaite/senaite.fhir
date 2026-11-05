@@ -4,6 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #52 Fix the creation of a Client from an Organization
 - #49 Preserve request order in transaction response bundles
 - #48 Add SVG barcode attachment as FHIR's Specimen extension
 - #51 Reject client-supplied bundle resource ID
