@@ -1,10 +1,19 @@
-FHIR Bundle POST (Organization without contact)
------------------------------------------------
+FHIR Bundle POST (Organization)
+-------------------------------
 
-The `contact` of an Organization is optional: it carries the address, phone
-and email of the Client, which are left empty when the Organization has none.
-A bundle whose Organization carries no contact creates the Client all the
-same.
+The Organization of a bundle is the Client the Sample is registered for. It
+is matched to an existing Client by its external identifier, the `ClientID`,
+and only by it: two Clients can share a name, and a renamed one would no
+longer match. When no Client has the ClientID, the Client is created from the
+Organization.
+
+- The `contact` of an Organization is optional: it carries the address, phone
+  and email of the Client, which are left empty when the Organization has
+  none.
+- The name is required, as it is the name of the Client.
+- A ClientID shared by more than one Client cannot be resolved without
+  guessing, so the bundle is rejected with `412 Precondition Failed`, naming
+  the Clients.
 
 Running this test from the buildout directory:
 
@@ -31,6 +40,42 @@ Variables:
     >>> browser = self.getBrowser()
     >>> browser.raiseHttpErrors = False
     >>> setRoles(portal, TEST_USER_ID, ["LabManager", "Manager"])
+
+Helpers:
+
+    >>> def load_bundle():
+    ...     raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    ...     return json.loads(raw)
+
+    >>> def get_entry(bundle, resource_type):
+    ...     return [e for e in bundle["entry"]
+    ...             if e["resource"]["resourceType"] == resource_type][0]
+
+    >>> def post_bundle(bundle):
+    ...     browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...                  content_type="application/json")
+    ...     return browser.headers["Status"], json.loads(browser.contents)
+
+Each scenario sends its own Organization and ServiceRequest, with their own
+placeholder ids, so they are not resolved to the ones of a previous scenario:
+
+    >>> def new_bundle(org_id, sr_id, client_id):
+    ...     bundle = load_bundle()
+    ...     org_entry = get_entry(bundle, "Organization")
+    ...     org_entry["fullUrl"] = "urn:uuid:{}".format(org_id)
+    ...     org_entry["resource"]["identifier"][0]["value"] = client_id
+    ...     sr_entry = get_entry(bundle, "ServiceRequest")
+    ...     sr_entry["fullUrl"] = "urn:uuid:{}".format(sr_id)
+    ...     ext = sr_entry["resource"]["extension"][0]
+    ...     ext["valueReference"]["reference"] = "urn:uuid:{}".format(org_id)
+    ...     return bundle
+
+    >>> def clients(client_id=None):
+    ...     portal._p_jar.sync()
+    ...     found = portal.clients.objectValues("Client")
+    ...     if client_id:
+    ...         found = [c for c in found if c.getClientID() == client_id]
+    ...     return found
 
 
 Setup objects
@@ -88,3 +133,117 @@ And the Sample is registered for it:
 
     >>> len(client.objectValues("AnalysisRequest"))
     1
+
+
+Matched by ClientID, not by name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An Organization with the same name, but another ClientID, is not the same
+Client: a new one is created:
+
+    >>> before = len(clients())
+    >>> bundle = new_bundle("a1a1a1a1-a1a1-5a1a-9a1a-a1a1a1a1a1a1",
+    ...                     "b1b1b1b1-b1b1-5b1b-9b1b-b1b1b1b1b1b1",
+    ...                     "ORG-RMH-NEW")
+    >>> status, response = post_bundle(bundle)
+    >>> status
+    '200 OK'
+    >>> len(clients()) == before + 1
+    True
+    >>> new_client = clients("ORG-RMH-NEW")[0]
+    >>> new_client.getName()
+    'Royal Melbourne Hospital'
+    >>> len(new_client.objectValues("AnalysisRequest"))
+    1
+
+An Organization with the ClientID of an existing Client is that Client, even
+with another name. The Client is updated, and no other is created:
+
+    >>> before = len(clients())
+    >>> bundle = new_bundle("a2a2a2a2-a2a2-5a2a-9a2a-a2a2a2a2a2a2",
+    ...                     "b2b2b2b2-b2b2-5b2b-9b2b-b2b2b2b2b2b2",
+    ...                     "ORG-RMH-NEW")
+    >>> get_entry(bundle, "Organization")["resource"]["name"] = u"Renamed"
+    >>> status, response = post_bundle(bundle)
+    >>> status
+    '200 OK'
+    >>> len(clients()) == before
+    True
+    >>> new_client.getName()
+    'Renamed'
+    >>> len(new_client.objectValues("AnalysisRequest"))
+    2
+
+
+Rejection: a ClientID shared by more than one Client
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two Clients have the same ClientID:
+
+    >>> dup1 = api.create(portal.clients, "Client", Name="Duplicate One",
+    ...                   ClientID="ORG-DUP")
+    >>> dup2 = api.create(portal.clients, "Client", Name="Duplicate Two",
+    ...                   ClientID="ORG-DUP")
+    >>> transaction.commit()
+    >>> before = len(clients())
+
+The bundle is rejected, rather than creating a third one or picking one of
+them. The outcome names the Clients:
+
+    >>> bundle = new_bundle("a3a3a3a3-a3a3-5a3a-9a3a-a3a3a3a3a3a3",
+    ...                     "b3b3b3b3-b3b3-5b3b-9b3b-b3b3b3b3b3b3",
+    ...                     "ORG-DUP")
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '412 Precondition Failed'
+    >>> issue = outcome["issue"][0]
+    >>> issue["code"], issue["expression"]
+    (u'multiple-matches', [u'Organization.identifier'])
+    >>> duplicates = ", ".join(sorted([api.get_id(dup1), api.get_id(dup2)]))
+    >>> issue["details"]["text"] == (
+    ...     "Multiple Clients with ClientID ORG-DUP: " + duplicates)
+    True
+
+Nothing was created:
+
+    >>> len(clients()) == before
+    True
+    >>> dup1.objectValues("AnalysisRequest") + dup2.objectValues(
+    ...     "AnalysisRequest")
+    []
+
+
+Rejection: an Organization without name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The name of the Client is required, so an Organization without name, or with
+a blank one, is rejected, whether it would create a Client or update one:
+
+    >>> for client_id, name in (("ORG-NO-NAME", None), ("ORG-RMH-NEW", u"  ")):
+    ...     bundle = new_bundle("a4a4a4a4-a4a4-5a4a-9a4a-a4a4a4a4a4a4",
+    ...                         "b4b4b4b4-b4b4-5b4b-9b4b-b4b4b4b4b4b4",
+    ...                         client_id)
+    ...     organization = get_entry(bundle, "Organization")["resource"]
+    ...     if name is None:
+    ...         del organization["name"]
+    ...     else:
+    ...         organization["name"] = name
+    ...     status, outcome = post_bundle(bundle)
+    ...     issue = outcome["issue"][0]
+    ...     print(status)
+    ...     print(issue["code"], issue["expression"])
+    ...     print(issue["details"]["text"])
+    400 Bad Request
+    (u'invalid', [u'Organization.name'])
+    Missing name in Organization
+    400 Bad Request
+    (u'invalid', [u'Organization.name'])
+    Missing name in Organization
+
+Nothing was created nor updated:
+
+    >>> clients("ORG-NO-NAME")
+    []
+    >>> new_client.getName()
+    'Renamed'
+

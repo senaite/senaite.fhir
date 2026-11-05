@@ -7,6 +7,7 @@ from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.converter import group_by
 from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IOrganizationResource
 from zope.component import adapter
@@ -21,8 +22,6 @@ class ResourceToOrganisation(ResourceToContent):
         self.validate()
 
         name = self.get_name()
-        if not name:
-            raise ValueError("%r: No Name" % self.resource)
 
         # The title of an Organisation is its Name, and core's `api.create`
         # always sets the title (empty when none is given), which would wipe
@@ -56,8 +55,19 @@ class ResourceToOrganisation(ResourceToContent):
 
         return data
 
+    def validate(self):
+        """Raises a ResourceValidationError if the resource violates any of
+        the validation rules. The name is required, as it is the name of the
+        Client
+        """
+        super(ResourceToOrganisation, self).validate()
+        if not self.get_name():
+            raise ResourceValidationError(
+                "Missing name in Organization",
+                expression=["Organization.name"], code="invalid")
+
     def get_name(self):
-        return self.resource.name
+        return (self.resource.name or "").strip()
 
     def get_contact_resource(self):
         return self.resource.contact

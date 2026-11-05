@@ -158,9 +158,10 @@ def find_by_if_none_exist(resource, raw):
     brains = api.search(query, catalog)
 
     if len(brains) > 1:
+        ids = ", ".join(sorted([api.get_id(brain) for brain in brains]))
         raise ResourceValidationError(
-            "Multiple {} resources match ifNoneExist: {}"
-            .format(resource_type, raw),
+            "Multiple {} resources match ifNoneExist: {} ({})"
+            .format(resource_type, raw, ids),
             expression=expression, code="multiple-matches")
 
     return api.get_object(brains[0]) if brains else None

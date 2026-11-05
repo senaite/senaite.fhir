@@ -62,8 +62,8 @@ Setup objects
 
 Here the `Client` already exists. The bundle's `Organization` is resolved
 to it by the `ClientFinder` (an `IContentFinder` adapter): it matches on
-the Organization's external identifier (the Client's `ClientID`) and falls
-back to the title, so the Organization is *updated* rather than created anew:
+the Organization's external identifier (the Client's `ClientID`), so the
+Organization is *updated* rather than created anew:
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Royal Melbourne Hospital",
