@@ -2,6 +2,7 @@
 
 from bika.lims import api
 from senaite.core.api import dtime
+from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.converter import get_by_key
 from senaite.fhir.converter import to_fhir_profile_url
 from senaite.fhir.datatype.address import Address
@@ -19,6 +20,8 @@ _marker = object()
 
 @implementer(IPatientResource)
 class PatientResource(FHIRResource):
+
+    external_id_system = PATIENT_MRN_SYSTEM
 
     @property
     def name(self):

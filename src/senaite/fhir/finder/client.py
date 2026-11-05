@@ -21,8 +21,7 @@ class ClientFinder(object):
     def find(self):
         """Looks for the resource's counterpart Client object
         """
-        # search by client ID (use=secondary). get_external_id returns the
-        # Identifier object, so we look up by its value
+        # search by client ID, the external identifier of the Organization
         identifier = self.resource.get_external_id()
         if identifier and identifier.value:
             query = dict(portal_type="Client", getClientID=identifier.value)

@@ -239,6 +239,12 @@ class ResourceToAnalysisResult(object):
     def __init__(self, resource):
         self.resource = resource
 
+    def validate(self):
+        """Does nothing. The rules of an Observation (identity, status, code
+        and device) need the Analysis the result is for, so they are checked
+        while the resource is converted (see `to_content_dict`)
+        """
+
     def to_content_dict(self):
         analysis = self.get_analysis()
         self.validate_status()

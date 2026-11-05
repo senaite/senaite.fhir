@@ -7,6 +7,7 @@ from senaite.fhir.converter import get_by_key
 from senaite.fhir.converter import get_emails
 from senaite.fhir.converter import get_phones
 from senaite.fhir.converter import group_by
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IOrganizationResource
@@ -16,10 +17,7 @@ from zope.interface import implementer
 
 @adapter(IOrganizationResource)
 @implementer(IFHIRToContent)
-class ResourceToPerson(object):
-
-    def __init__(self, resource):
-        self.resource = resource
+class ResourceToPerson(ResourceToContent):
 
     def to_content_dict(self):
         # Person name

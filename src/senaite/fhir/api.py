@@ -16,12 +16,15 @@ from Products.CMFCore.permissions import ModifyPortalContent
 from senaite.fhir import logger
 from senaite.fhir.catalog import FHIR_CATALOG
 from senaite.fhir.config import ANALYSIS_REPORTABLE_STATUSES
+from senaite.fhir.config import FHIR_BASE_URL
 from senaite.fhir.config import FHIR_RESOURCE_TO_PORTAL_TYPE
 from senaite.fhir.config import FHIR_STORAGE_KEY
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
 from senaite.fhir.exceptions import FHIRAPIError
+from senaite.fhir.exceptions import IdentifierValidationError
+from senaite.fhir.exceptions import LogicalIdValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -614,6 +617,18 @@ def to_content_dict(resource, default=_marker):
     return adapter.to_content_dict()
 
 
+def validate(resource):
+    """Raises a ResourceValidationError if the resource violates any of the
+    validation rules of its IFHIRToContent converter
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    adapter = queryAdapter(resource, IFHIRToContent)
+    if not adapter:
+        raise ValueError("Missing IFHIRToContent adapter for %r" % resource)
+    adapter.validate()
+
+
 def can_create_or_update(resource):
     """Returns whether the creation of counterpart objects for the given
     resources is supported
@@ -636,6 +651,122 @@ def can_create_or_update(resource):
                     resource)
         return False
     return True
+
+
+def to_naming_system_url(system_id):
+    """Returns the canonical NamingSystem URI for an identifier namespace
+
+    `system_id` is the NamingSystem id as published in the implementation
+    guide, e.g. `sample-id`, `analysis-id` or `client-sample-id`. The URI it
+    builds is what a FHIR `Identifier.system` has to carry for a consumer to
+    tell one namespace from another, so it serves both to stamp outgoing
+    identifiers and to check the system of the incoming ones.
+    https://fhir.senaite.org/identifiers.html
+    """
+    return "%s/NamingSystem/%s" % (FHIR_BASE_URL, system_id)
+
+
+def validate_identifiers(resource):
+    """Raises an IdentifierValidationError if the identifiers of the incoming
+    resource do not follow the identifiers pattern. A resource whose type
+    supports no external identifier cannot carry any identifier at all,
+    whatever its `use`
+    https://fhir.senaite.org/identifiers.html
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    if not resource.external_id_system:
+        validate_no_identifier(resource)
+        return
+
+    validate_internal_identifier(resource)
+    validate_external_identifier(resource)
+
+
+def validate_no_identifier(resource):
+    """Raises an IdentifierValidationError if the resource carries any
+    identifier at all, whatever its `use`. For resources that support no
+    identifier, such as ServiceRequest
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    if resource.identifier:
+        msg = "Cannot specify any identifier in {}".format(
+            resource.resourceType)
+        raise IdentifierValidationError(resource, msg)
+
+
+def validate_no_logical_id(resource):
+    """Raises a LogicalIdValidationError if the bundle entry of the resource
+    carries a `resource.id`. The logical id is assigned by SENAITE: a POSTed
+    entry is only identified by the placeholder of its `fullUrl`, which the
+    other entries of the bundle refer to
+
+    :param resource: the FHIR resource of a bundle entry
+    """
+    bundle = resource.get("_bundle")
+    if not bundle:
+        return
+    index = bundle.get_entry_index(resource)
+    if index is None:
+        return
+    entry = bundle["entry"][index]
+    if "id" in (entry.get("resource") or {}):
+        raise LogicalIdValidationError(index)
+
+
+def validate_internal_identifier(resource):
+    """Raises an IdentifierValidationError if the resource carries an
+    internal (usual) identifier. These are assigned by SENAITE only after
+    creation and can never be supplied by the API consumer
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    object_id = resource.get_object_id()
+    if object_id:
+        msg = (
+            "Cannot specify usual identifier externally in incoming {}:{}"
+        ).format(resource.resourceType, object_id.value)
+        raise IdentifierValidationError(resource, msg)
+
+
+def validate_external_identifier(resource):
+    """Raises an IdentifierValidationError if any of the identifiers of the
+    resource other than the internal (usual) one is not an external one, with
+    `use="secondary"` and the NamingSystem its type supports. A resource can
+    only carry external identifiers of that system, whatever their position
+
+    The internal (usual) identifier is validated by
+    `validate_internal_identifier`
+
+    :param resource: the incoming FHIR resource to validate
+    """
+    system = to_naming_system_url(resource.external_id_system)
+    identifiers = getattr(resource, "identifier", None) or []
+    for identifier in identifiers:
+        if identifier.use == "usual":
+            continue
+
+        if not identifier.use:
+            msg = "Missing identifier use in {}".format(resource.resourceType)
+            raise IdentifierValidationError(resource, msg)
+
+        if identifier.use != "secondary":
+            msg = (
+                "Unsupported identifier use in {}: {}"
+            ).format(resource.resourceType, identifier.use)
+            raise IdentifierValidationError(resource, msg)
+
+        if not identifier.system:
+            msg = "Missing identifier system in {}".format(
+                resource.resourceType)
+            raise IdentifierValidationError(resource, msg)
+
+        if identifier.system != system:
+            msg = (
+                "Unsupported identifier system in {}: {}"
+            ).format(resource.resourceType, identifier.system)
+            raise IdentifierValidationError(resource, msg)
 
 
 def update(obj, resource):

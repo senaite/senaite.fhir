@@ -263,9 +263,11 @@ a different family name:
     ...     for entry in data["entry"]:
     ...         resource = entry["resource"]
     ...         if resource["resourceType"] == "Practitioner":
-    ...             resource["id"] = unknown_id
+    ...             entry["fullUrl"] = "urn:uuid:{}".format(unknown_id)
     ...             resource["identifier"] = [{
     ...                 "use": "secondary",
+    ...                 "system": fapi.to_naming_system_url(
+    ...                     "practitioner-external-id"),
     ...                 "value": external_id,
     ...             }]
     ...             if family:
@@ -274,9 +276,8 @@ a different family name:
     ...         if resource["resourceType"] == "ServiceRequest":
     ...             reference = "Practitioner/{}".format(unknown_id)
     ...             resource["requester"]["reference"] = reference
-    ...             sr_id = resource["id"]
     ...     data = fapi.to_fhir_resource(data)
-    ...     service_request = data.first_entry("id", sr_id)
+    ...     service_request = data.first_entry("resourceType", "ServiceRequest")
     ...     converter = ResourceToAnalysisRequest(service_request)
     ...     return converter.get_requester()
 
@@ -397,7 +398,7 @@ Post the bundle with a `Practitioner` that has a FHIR id not known by SENAITE:
     >>> for entry in repeat["entry"]:
     ...     resource = entry["resource"]
     ...     if resource["resourceType"] == "Practitioner":
-    ...         resource["id"] = practitioner_id
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(practitioner_id)
     ...     if resource["resourceType"] == "ServiceRequest":
     ...         reference = "Practitioner/{}".format(practitioner_id)
     ...         resource["requester"]["reference"] = reference
@@ -477,7 +478,10 @@ so it can only be matched by MRN (not by FHIR UID)::
     ...                  "use": "home"}],
     ...     "gender": "male",
     ...     "birthDate": "1970-01-01",
-    ...     "identifier": [{"use": "secondary", "value": "MRN-MANUAL"}],
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "MRN-MANUAL"}],
     ... }
     >>> browser.post("{}/Patient".format(fhir_url), json.dumps(incoming),
     ...              content_type="application/json")

@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from bika.lims.interfaces import IAnalysisRequest
+from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.barcode import get_barcode_extension
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
+from senaite.fhir.config import SAMPLE_ID_SYSTEM
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SPECIMEN_STATUSES
 from senaite.fhir.converter import first_by
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_profile_url
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
-from senaite.fhir.converter import to_naming_system_url
 from senaite.fhir.converter.person import ResourceToPerson
 from senaite.fhir.exceptions import ServiceRequestValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
@@ -126,13 +128,13 @@ class AnalysisRequestToSpecimen(object):
             data["collection"] = collection
 
         identifiers = [
-            to_fhir_id("sample-id", ar.getId(), use="usual"),
+            to_fhir_id(SAMPLE_ID_SYSTEM, ar.getId(), use="usual"),
         ]
         client_sample_id = ar.getClientSampleID()
         if client_sample_id:
             identifiers.append(
                 to_fhir_id(
-                    "client-sample-id",
+                    CLIENT_SAMPLE_ID_SYSTEM,
                     client_sample_id,
                     use="secondary",
                 )
@@ -162,68 +164,20 @@ class AnalysisRequestToSpecimen(object):
 
 @adapter(IServiceRequestResource)
 @implementer(IFHIRToContent)
-class ResourceToAnalysisRequest(object):
-
-    def __init__(self, resource):
-        self.resource = resource
-
-    def validate(self):
-        """Runs all the validators here. Can be extended
-        """
-        self.validate_identifiers()
-
-    def _reject_object_identifier(self, obj, obj_name):
-        """Reject resource that mandates internal identifier"""
-        object_id = obj.get_object_id()
-        if object_id:
-            msg = (
-                "Cannot specify usual identifier externally in incoming "
-                "{}:{}"
-            ).format(obj_name, object_id.value)
-            raise ServiceRequestValidationError(
-                msg,
-                expression=["{}.identifier".format(obj_name)],
-                code="invalid",
-            )
-
-    def _validate_external_identifier(self, obj, obj_name,
-                                      valid_system=None):
-        """Reject resource with invalid external identifier"""
-        external_id = obj.get_external_id()
-        if external_id:
-            if valid_system is None:
-                msg = (
-                    "Cannot specify external identifier in "
-                    "{}:{}"
-                ).format(obj_name, external_id.value)
-                raise ServiceRequestValidationError(
-                    msg,
-                    expression=["{}.identifier".format(obj_name)],
-                    code="invalid",
-                )
-            if external_id.system != valid_system:
-                msg = (
-                    "Unsupported identifier system in {}: {}"
-                ).format(obj_name, external_id.system)
-                raise ServiceRequestValidationError(
-                    msg,
-                    expression=["{}.identifier".format(obj_name)],
-                    code="invalid",
-                )
+class ResourceToAnalysisRequest(ResourceToContent):
 
     def validate_identifiers(self):
-        """Validates identifiers"""
-        self._reject_object_identifier(self.resource, "ServiceRequest")
-        self._validate_external_identifier(self.resource, "ServiceRequest")
+        """Raises a ResourceValidationError if the ServiceRequest carries any
+        identifier, or if the identifiers of its Specimen do not follow the
+        identifiers pattern
+        """
+        # the ServiceRequest supports no external identifier, so it cannot
+        # carry any identifier at all
+        super(ResourceToAnalysisRequest, self).validate_identifiers()
 
         specimen = self.get_specimen()
         if specimen:
-            self._reject_object_identifier(specimen, "Specimen")
-            self._validate_external_identifier(
-                specimen,
-                "Specimen",
-                to_naming_system_url("client-sample-id"),
-            )
+            fapi.validate_identifiers(specimen)
 
     def to_content_dict(self):
         # TODO We don't validate category + SNOMED code (is necessary?)

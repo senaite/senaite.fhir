@@ -124,6 +124,13 @@ class IFHIRToContent(Interface):
     """Converter of IFHIRResource to AT/DX info dict
     """
 
+    def validate(self):
+        """Raises a ResourceValidationError if the resource violates any of
+        the validation rules. Called before the counterpart object of the
+        resource is searched, so the rules apply whether the object is
+        created, updated or matched
+        """
+
     def to_content_dict(self):
         """Returns a dict suitable for the creation or update of a content
         type object

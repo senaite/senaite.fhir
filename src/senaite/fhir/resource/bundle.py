@@ -8,6 +8,22 @@ from senaite.fhir.resource import FHIRResource
 from zope.interface import implementer
 
 
+def get_entry_id(entry):
+    """Returns the id of the resource of the given raw bundle entry. A POSTed
+    entry carries no `resource.id`, so it is the placeholder of the entry's
+    `fullUrl` (e.g. `urn:uuid:<id>`), which the references between the
+    entries of the same bundle point to
+
+    :param entry: a raw bundle entry dict
+    :returns: the id of the entry's resource, or None
+    """
+    resource = entry.get("resource") or {}
+    if resource.get("id"):
+        return resource["id"]
+    full_url = entry.get("fullUrl") or ""
+    return full_url.split("/")[-1].split(":")[-1] or None
+
+
 @implementer(IBundleResource)
 class Bundle(FHIRResource):
     """A container for a collection of resources.
@@ -63,13 +79,16 @@ class Bundle(FHIRResource):
         entries = self.get("entry") or []
         resources = []
         for entry in entries:
-            # TODO fullUrl (e.g. urn:uuid:ddaf107d-a44d-4b7b-966b-65d82de495cc)
-            # full_url = entry.get("fullUrl")
             raw_resource = entry.get("resource")
 
             # TODO Only interested on resources resolving to our FHIRResource
             resource = to_fhir_resource(raw_resource, default=None)
             if resource:
+                # the resource of a POSTed entry carries no id: take it from
+                # the entry's fullUrl, so it can be referenced and looked up
+                entry_id = get_entry_id(entry)
+                if not resource.id and entry_id:
+                    resource["id"] = entry_id
                 # keep track of the bundle the resource belongs to, so that
                 # the references to its siblings can be resolved
                 resource["_bundle"] = self
@@ -82,3 +101,34 @@ class Bundle(FHIRResource):
         the value passed-in
         """
         return get_by_key(self.entry, key, value)
+
+    def get_entry_index(self, resource):
+        """Returns the position in the bundle of the entry of the given
+        (already-extracted) FHIRResource, or None. Matched by the entry's id,
+        as the raw resource of a POSTed entry carries none (see
+        `get_entry_id`)
+        """
+        if not resource.id:
+            return None
+        for index, entry in enumerate(self.get("entry") or []):
+            if get_entry_id(entry) == resource.id:
+                return index
+        return None
+
+    def get_entry(self, resource):
+        """Returns the raw entry (as submitted, keeping `fullUrl` and
+        `request`) of the given (already-extracted) FHIRResource, or None
+        """
+        index = self.get_entry_index(resource)
+        if index is None:
+            return None
+        return self["entry"][index]
+
+    def get_request(self, resource):
+        """Returns the raw `request` dict (method/url/ifNoneExist/...)
+        declared on the given (already-extracted) FHIRResource's bundle
+        entry, or {} when the entry carries none.
+        https://hl7.org/fhir/R5/bundle-definitions.html#Bundle.entry.request
+        """
+        entry = self.get_entry(resource) or {}
+        return entry.get("request") or {}
