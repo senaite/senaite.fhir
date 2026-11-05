@@ -26,8 +26,8 @@ class ResourceToOrganisation(ResourceToContent):
 
         data = {"Name": name}
 
-        # Addresses
-        address = self.get_address()
+        # Addresses (an Organization may carry no contact with an address)
+        address = self.get_address() or {}
         if address.get("type") == PHYSICAL_ADDRESS:
             data["PhysicalAddress"] = address
         elif address.get("type") == POSTAL_ADDRESS:
