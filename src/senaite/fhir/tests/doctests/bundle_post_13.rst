@@ -5,7 +5,7 @@ The logical id (`Resource.id`) of a resource is assigned by SENAITE and never
 supplied by the consumer. A POSTed entry is only identified by the placeholder
 of its `fullUrl` (e.g. `urn:uuid:<id>`), which the other entries of the same
 bundle refer to. An entry carrying `resource.id` rejects the whole bundle with
-400 Bad Request, before anything is processed.
+422 Unprocessable Entity, before anything is processed.
 
 Running this test from the buildout directory:
 
@@ -76,14 +76,27 @@ A Patient entry that carries the placeholder of its fullUrl as its id too:
     >>> entry["resource"]["id"] = entry["fullUrl"].split(":")[-1]
     >>> status, outcome = post_bundle(bundle)
     >>> status
-    '400 Bad Request'
+    '422 Unprocessable Entity'
     >>> issue = outcome["issue"][0]
-    >>> issue["code"]
-    u'invalid'
+    >>> issue["severity"], issue["code"]
+    (u'error', u'invalid')
+    >>> issue["details"]["coding"] == [{
+    ...     "system": "http://terminology.hl7.org/CodeSystem/"
+    ...               "operation-outcome",
+    ...     "code": "MSG_LOCAL_FAIL",
+    ... }]
+    True
+    >>> issue["details"]["text"] == (
+    ...     "Resource.id must not be supplied in a POST transaction entry. "
+    ...     "SENAITE generates all logical IDs; see "
+    ...     "identifiers.html#general-pattern.")
+    True
+
+The expression points to the entry by its position in the bundle (the
+Patient is the first entry):
+
     >>> issue["expression"]
-    [u'Patient.id']
-    >>> print(issue["details"]["text"])
-    Cannot specify the id of Patient in a POSTed entry, SENAITE assigns it
+    [u'Bundle.entry[0].resource.id']
 
 Nothing was created:
 
@@ -98,8 +111,8 @@ such as the Specimen:
     >>> entry["resource"]["id"] = "any-id"
     >>> status, outcome = post_bundle(bundle)
     >>> status
-    '400 Bad Request'
+    '422 Unprocessable Entity'
     >>> outcome["issue"][0]["expression"]
-    [u'Specimen.id']
+    [u'Bundle.entry[3].resource.id']
     >>> patient_count() == before
     True

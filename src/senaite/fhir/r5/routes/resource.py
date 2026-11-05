@@ -229,8 +229,8 @@ def post(context, request, resource_type=None):
 
 def get_validation_outcome(request, error):
     """Rolls back the transaction and returns the OperationOutcome for the
-    given ResourceValidationError, with the HTTP status that matches its
-    issue code
+    given ResourceValidationError, with the HTTP status of the error, or the
+    one that matches its issue code otherwise
 
     :param request: the current request
     :param error: the ResourceValidationError raised
@@ -242,12 +242,18 @@ def get_validation_outcome(request, error):
         status_code = 409
     elif code == "multiple-matches":
         status_code = 412
+    status_code = getattr(error, "status", None) or status_code
+
+    details = {"text": str(error)}
+    coding = getattr(error, "coding", None)
+    if coding:
+        details["coding"] = coding
 
     request.response.setStatus(status_code)
     issue = {
         "severity": "error",
         "code": code,
-        "details": {"text": str(error)},
+        "details": details,
         "expression": error.expression,
     }
     return OperationOutcome({"issue": [issue]})

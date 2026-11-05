@@ -102,16 +102,27 @@ class Bundle(FHIRResource):
         """
         return get_by_key(self.entry, key, value)
 
+    def get_entry_index(self, resource):
+        """Returns the position in the bundle of the entry of the given
+        (already-extracted) FHIRResource, or None. Matched by the entry's id,
+        as the raw resource of a POSTed entry carries none (see
+        `get_entry_id`)
+        """
+        if not resource.id:
+            return None
+        for index, entry in enumerate(self.get("entry") or []):
+            if get_entry_id(entry) == resource.id:
+                return index
+        return None
+
     def get_entry(self, resource):
         """Returns the raw entry (as submitted, keeping `fullUrl` and
-        `request`) of the given (already-extracted) FHIRResource, or None.
-        Matched by the entry's id, as the raw resource of a POSTed entry
-        carries none (see `get_entry_id`)
+        `request`) of the given (already-extracted) FHIRResource, or None
         """
-        for entry in self.get("entry") or []:
-            if get_entry_id(entry) == resource.id:
-                return entry
-        return None
+        index = self.get_entry_index(resource)
+        if index is None:
+            return None
+        return self["entry"][index]
 
     def get_request(self, resource):
         """Returns the raw `request` dict (method/url/ifNoneExist/...)

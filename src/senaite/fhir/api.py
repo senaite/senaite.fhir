@@ -24,7 +24,7 @@ from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
 from senaite.fhir.exceptions import FHIRAPIError
 from senaite.fhir.exceptions import IdentifierValidationError
-from senaite.fhir.exceptions import ResourceValidationError
+from senaite.fhir.exceptions import LogicalIdValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -697,7 +697,7 @@ def validate_no_identifier(resource):
 
 
 def validate_no_logical_id(resource):
-    """Raises a ResourceValidationError if the bundle entry of the resource
+    """Raises a LogicalIdValidationError if the bundle entry of the resource
     carries a `resource.id`. The logical id is assigned by SENAITE: a POSTed
     entry is only identified by the placeholder of its `fullUrl`, which the
     other entries of the bundle refer to
@@ -707,14 +707,12 @@ def validate_no_logical_id(resource):
     bundle = resource.get("_bundle")
     if not bundle:
         return
-    entry = bundle.get_entry(resource) or {}
-    if "id" not in (entry.get("resource") or {}):
+    index = bundle.get_entry_index(resource)
+    if index is None:
         return
-    resource_type = resource.resourceType
-    raise ResourceValidationError(
-        "Cannot specify the id of {} in a POSTed entry, SENAITE assigns it"
-        .format(resource_type),
-        expression=["{}.id".format(resource_type)], code="invalid")
+    entry = bundle["entry"][index]
+    if "id" in (entry.get("resource") or {}):
+        raise LogicalIdValidationError(index)
 
 
 def validate_internal_identifier(resource):
