@@ -3,6 +3,7 @@
 from bika.lims import api
 from bika.lims.interfaces import IInstrument
 from senaite.fhir import api as fapi
+from senaite.fhir.config import DEVICE_ID_SYSTEM
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_identifier
 from senaite.fhir.converter import to_fhir_profile_url
@@ -76,7 +77,7 @@ class InstrumentToDevice(object):
 
         # senaiteId slice: SENAITE server-generated id
         senaite_id = to_fhir_identifier(
-            "device-id", api.get_id(self.instrument), use="usual")
+            DEVICE_ID_SYSTEM, api.get_id(self.instrument), use="usual")
         if senaite_id:
             identifiers.append(senaite_id)
 

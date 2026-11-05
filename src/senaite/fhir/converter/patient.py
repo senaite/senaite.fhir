@@ -6,6 +6,8 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir import api as fapi
+from senaite.fhir.config import PATIENT_ID_SYSTEM
+from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.converter import group_by
 from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
@@ -68,9 +70,9 @@ class PatientToResource(object):
     def get_fhir_identifiers(self):
         # basic identifiers
         identifiers = [
-            to_fhir_id("patient-id", self.patient.getId(), use="usual"),
+            to_fhir_id(PATIENT_ID_SYSTEM, self.patient.getId(), use="usual"),
             to_fhir_id(
-                "patient-mrn", self.patient.getMRN(), use="secondary")
+                PATIENT_MRN_SYSTEM, self.patient.getMRN(), use="secondary")
         ]
         # secondary identifiers
         for key, value in self.patient.get_identifier_items():
@@ -233,7 +235,7 @@ class PatientToResource(object):
 @implementer(IFHIRToContent)
 class ResourceToPatient(ResourceToContent):
 
-    external_id_system = "patient-mrn"
+    external_id_system = PATIENT_MRN_SYSTEM
 
     def to_content_dict(self):
         self.validate()

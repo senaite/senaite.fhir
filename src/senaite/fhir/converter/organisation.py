@@ -4,6 +4,7 @@ from bika.lims import api
 from senaite.core.schema.addressfield import BILLING_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
+from senaite.fhir.config import ORGANIZATION_EXTERNAL_ID_SYSTEM
 from senaite.fhir.converter import group_by
 from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
@@ -17,7 +18,7 @@ from zope.interface import implementer
 @implementer(IFHIRToContent)
 class ResourceToOrganisation(ResourceToContent):
 
-    external_id_system = "organization-external-id"
+    external_id_system = ORGANIZATION_EXTERNAL_ID_SYSTEM
 
     def to_content_dict(self):
         self.validate()

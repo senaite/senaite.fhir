@@ -2,6 +2,7 @@
 from bika.lims.interfaces import IAnalysisRequest
 from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
+from senaite.fhir.config import SAMPLE_ID_SYSTEM
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SPECIMEN_STATUSES
 from senaite.fhir.converter import first_by
@@ -127,7 +128,7 @@ class AnalysisRequestToSpecimen(object):
             data["collection"] = collection
 
         identifiers = [
-            to_fhir_id("sample-id", ar.getId(), use="usual"),
+            to_fhir_id(SAMPLE_ID_SYSTEM, ar.getId(), use="usual"),
         ]
         client_sample_id = ar.getClientSampleID()
         if client_sample_id:

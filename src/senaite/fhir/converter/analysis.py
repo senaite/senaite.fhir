@@ -3,6 +3,7 @@
 from bika.lims import api
 from bika.lims.interfaces import IAnalysis
 from senaite.fhir import api as fapi
+from senaite.fhir.config import ANALYSIS_ID_SYSTEM
 from senaite.fhir.config import DEFAULT_INSTRUMENT_SERVICE_REQUEST_CATEGORY
 from senaite.fhir.config import INSTRUMENT_SERVICE_REQUEST_STATUSES
 from senaite.fhir.converter import to_fhir_datetime
@@ -81,7 +82,7 @@ class AnalysisToInstrumentServiceRequest(object):
 
     def get_identifier(self, sample):
         identifier = "{}_{}".format(sample.getId(), self.analysis.getId())
-        return [to_fhir_id("analysis-id", identifier, use="usual")]
+        return [to_fhir_id(ANALYSIS_ID_SYSTEM, identifier, use="usual")]
 
     def get_status(self):
         status = api.get_review_status(self.analysis)

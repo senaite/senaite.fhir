@@ -2,6 +2,7 @@
 
 from senaite.fhir import api as fapi
 from bika.lims import api
+from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
 from senaite.fhir.converter.person import ResourceToPerson
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IPractitionerResource
@@ -13,7 +14,7 @@ from zope.interface import implementer
 @implementer(IFHIRToContent)
 class ResourceToContact(ResourceToPerson):
 
-    external_id_system = "practitioner-external-id"
+    external_id_system = PRACTITIONER_EXTERNAL_ID_SYSTEM
 
     def get_parent(self):
         """Returns the parent object to which the counterpart object should
