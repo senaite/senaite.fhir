@@ -1,17 +1,18 @@
-FHIR Bundle POST (single analysis, asap priority)
--------------------------------------------------
+FHIR Bundle POST (second example)
+---------------------------------
 
-A fourth ``SenaiteRequestBundle`` example: a request for a single analysis
-(Magnesium) with an ``asap`` priority. The ``ServiceRequest`` carries a
-SNOMED ``code`` (*Laboratory procedure*) but no analysis panel, so no
-profile is resolved and the Sample ends up with just the ordered analysis.
+A second ``SenaiteRequestBundle`` example, exercising the POST endpoint of
+the FHIR API route ``/senaite/@@FHIR/r5`` with a different lab request.
 
-This also pins the priority mapping: a FHIR ``asap`` priority maps to the
-SENAITE priority ``2``.
+This bundle's ``ServiceRequest`` references a panel whose ``code.concept``
+carries a coding but no ``text``, and no matching ``AnalysisProfile`` exists
+in the instance. Resolving the (optional) analysis profile must therefore
+cope with the missing values and yield no profile, rather than failing with
+``500 'NoneType' object has no attribute 'lower'``.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_04
+    bin/test test_doctests -t bundle_post_panel_without_profile
 
 
 Test Setup
@@ -37,7 +38,9 @@ Variables:
     >>> browser.raiseHttpErrors = False
     >>> setRoles(portal, TEST_USER_ID, ["LabManager", "Manager"])
 
-    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.04.json")
+Load the example bundle from the test data:
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.02.json")
     >>> bundle = json.loads(raw)
     >>> bundle["type"]
     u'transaction'
@@ -46,15 +49,18 @@ Variables:
 Setup objects
 ~~~~~~~~~~~~~
 
-The pre-existing Client (matched by the Organization's ``ClientID``), the
-Serum SampleType, and the single ordered analysis (Magnesium, matched by
-``ProtocolID``):
+The pre-existing ``Client`` (matched by the Organization's ``ClientID``) and
+the ``SampleType`` (matched by the Specimen's SNOMED display, ``Serum``):
 
     >>> client = api.create(portal.clients, "Client",
     ...                     Name="Cayman Islands Health Services Authority",
     ...                     ClientID="ORG-HLTH-CYM-001")
     >>> sampletype = api.create(setup.sampletypes, "SampleType",
     ...                         title="Serum", Prefix="SER")
+
+The single ordered analysis (LOINC ``19123-9``, matched by ``ProtocolID``).
+Note we deliberately do *not* create an ``AnalysisProfile`` for the panel:
+
     >>> labcontact = api.create(portal.bika_setup.bika_labcontacts,
     ...                         "LabContact", Firstname="Lab", Lastname="Boss")
     >>> department = api.create(setup.departments, "Department",
@@ -70,6 +76,8 @@ Serum SampleType, and the single ordered analysis (Magnesium, matched by
 
 Post the bundle
 ~~~~~~~~~~~~~~~
+
+The Bundle is accepted (no ``500`` from the unresolved panel):
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
     ...              content_type="application/json")
@@ -94,13 +102,29 @@ Post the bundle
     >>> status["Specimen"]
     u'201 Created'
 
+
 Created content
 ~~~~~~~~~~~~~~~
 
     >>> portal._p_jar.sync()
 
-A new Sample is created under the Client, including only Magnesium and with
-no analysis profile (the SNOMED ``code`` does not resolve to a panel)::
+A Patient and a Contact (from the Practitioner) were created:
+
+    >>> patients = [obj for obj in portal.patients.objectValues()
+    ...             if api.get_portal_type(obj) == "Patient"]
+    >>> len(patients)
+    1
+    >>> patients[0].getMRN()
+    'PAT-2026-00841'
+
+    >>> contacts = [obj for obj in client.objectValues()
+    ...             if api.get_portal_type(obj) == "Contact"]
+    >>> contacts[0].getFullname()
+    'Thabo Mbeki'
+
+A Sample was created under the Client, with the single ordered analysis and
+the ``asap`` priority. No analysis profile was assigned -- the unresolved
+panel yields no profile instead of raising::
 
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
@@ -110,12 +134,9 @@ no analysis profile (the SNOMED ``code`` does not resolve to a panel)::
     'sample_due'
     >>> sample.getSampleType() == sampletype
     True
-    >>> sample.getProfiles()
-    []
-    >>> [an.getKeyword for an in sample.getAnalyses()]
-    ['Mg']
-
-The ``asap`` priority is mapped to the SENAITE priority ``2``::
-
+    >>> len(sample.getAnalyses())
+    1
     >>> sample.getPriority()
     '2'
+    >>> sample.getProfiles()
+    []

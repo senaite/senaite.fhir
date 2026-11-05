@@ -28,7 +28,7 @@ Tests the identifier validation layer in
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_08
+    bin/test test_doctests -t bundle_post_order_identifiers
 
 
 Test Setup

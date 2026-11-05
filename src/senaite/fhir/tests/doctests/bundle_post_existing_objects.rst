@@ -10,7 +10,7 @@ matched as well, and not duplicated, by bundles carrying the systems.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_10
+    bin/test test_doctests -t bundle_post_existing_objects
 
 
 Test Setup

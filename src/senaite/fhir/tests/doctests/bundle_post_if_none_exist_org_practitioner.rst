@@ -1,16 +1,16 @@
 FHIR Bundle POST (ifNoneExist conditional create -- Organization, Practitioner)
 --------------------------------------------------------------------------------
 
-Continues ``bundle_post_11`` (which covers the ``ifNoneExist`` mechanics end
-to end for ``Patient``) with spot-checks for ``Organization`` and
-``Practitioner``, plus two cross-cutting edge cases: more than one match
-(412, whole bundle rejected) and a stray ``ifNoneExist`` on a resource type
-that doesn't support it (``ServiceRequest``/``Specimen`` are ``0..0`` per the
-IG -- rejected with 400, whole bundle rejected).
+Continues ``bundle_post_if_none_exist`` (which covers the ``ifNoneExist``
+mechanics end to end for ``Patient``) with spot-checks for ``Organization`` and
+``Practitioner``, plus two cross-cutting edge cases: more than one match (412,
+whole bundle rejected) and a stray ``ifNoneExist`` on a resource type that
+doesn't support it (``ServiceRequest``/``Specimen`` are ``0..0`` per the IG --
+rejected with 400, whole bundle rejected).
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_12
+    bin/test test_doctests -t bundle_post_if_none_exist_org_practitioner
 
 
 Test Setup
@@ -63,8 +63,8 @@ Helpers:
 
 The Organization's placeholder id is also referenced by the ServiceRequest's
 ``SenaiteClient`` extension, so repointing it (same reason as
-``bundle_post_11``'s ``set_patient_id``, avoiding a later scenario's link
-stealing an earlier one's FHIR id) means updating both:
+``bundle_post_if_none_exist``'s ``set_patient_id``, avoiding a later scenario's
+link stealing an earlier one's FHIR id) means updating both:
 
     >>> def set_org_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Organization")
@@ -75,8 +75,8 @@ stealing an earlier one's FHIR id) means updating both:
 
 Every scenario that expects a *new* Sample also needs its own ServiceRequest
 placeholder id -- otherwise it silently matches (and updates in place) the
-AnalysisRequest an earlier scenario already linked to the fixture's default
-id, rather than creating a new one (the exact gotcha ``bundle_post_06``
+AnalysisRequest an earlier scenario already linked to the fixture's default id,
+rather than creating a new one (the exact gotcha ``bundle_post_order_detail``
 documents):
 
     >>> def set_sr_id(bundle, new_id):
@@ -96,10 +96,10 @@ Same for the Practitioner, referenced from ServiceRequest.requester:
 Setup objects
 ~~~~~~~~~~~~~
 
-Same fixture as ``bundle_post_09``/``bundle_post_11`` -- the default Client
-the bundle's own Organization entry already carries an external id for
-(``ORG-RMH-MEL``), plus the AnalysisServices/SampleType the ServiceRequest
-and Specimen need to succeed:
+Same fixture as ``bundle_post_identifiers``/``bundle_post_if_none_exist`` --
+the default Client the bundle's own Organization entry already carries an
+external id for (``ORG-RMH-MEL``), plus the AnalysisServices/SampleType the
+ServiceRequest and Specimen need to succeed:
 
     >>> client = api.create(portal.clients, "Client",
     ...                     ClientID="ORG-RMH-MEL")
@@ -232,9 +232,9 @@ A Contact already exists under the default Client:
     >>> transaction.commit()
     >>> before = len(client.getContacts())
 
-This is the same match ``bundle_post_09`` already exercises via the always-on
-``ContactFinder`` fallback -- here it's driven explicitly by ``ifNoneExist``
-instead, a different code path with the same outcome:
+This is the same match ``bundle_post_identifiers`` already exercises via the
+always-on ``ContactFinder`` fallback -- here it's driven explicitly by
+``ifNoneExist`` instead, a different code path with the same outcome:
 
     >>> bundle = load_bundle()
     >>> set_sr_id(bundle, "e3e3e3e3-e3e3-5e3e-9e3e-e3e3e3e3e3e3")

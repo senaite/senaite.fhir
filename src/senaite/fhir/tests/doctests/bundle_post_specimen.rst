@@ -20,7 +20,7 @@ Specimen listing:
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_07
+    bin/test test_doctests -t bundle_post_specimen
 
 
 Test Setup

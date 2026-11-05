@@ -16,7 +16,7 @@ Explicit tests for all six ``orderDetail``/``code`` scenarios:
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_06
+    bin/test test_doctests -t bundle_post_order_detail
 
 
 Test Setup

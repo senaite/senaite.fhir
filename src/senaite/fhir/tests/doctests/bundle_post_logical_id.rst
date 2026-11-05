@@ -9,7 +9,7 @@ bundle refer to. An entry carrying `resource.id` rejects the whole bundle with
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_13
+    bin/test test_doctests -t bundle_post_logical_id
 
 
 Test Setup

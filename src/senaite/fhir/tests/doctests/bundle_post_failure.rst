@@ -6,7 +6,7 @@ cannot be processed, nothing at all is persisted.
 
 When the failure is one the endpoint knows about -- a violation of a SENAITE
 profile -- it is reported as a `400 OperationOutcome` naming the offending
-element (see `bundle_post_07`). This test covers the other case: an
+element (see `bundle_post_specimen`). This test covers the other case: an
 *unexpected* failure while a resource is being processed. Such a failure has to
 
 - roll the whole bundle back, including the resources that were processed

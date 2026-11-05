@@ -2,9 +2,9 @@ FHIR Bundle POST (Patient/Organization/Practitioner identifier validation)
 ---------------------------------------------------------------------------
 
 Tests the same internal-id/external-id validation pattern used by
-`ResourceToAnalysisRequest.validate_identifiers()` (see `bundle_post_08.rst`),
-now applied to `ResourceToPatient`, `ResourceToOrganisation` and
-`ResourceToContact`:
+`ResourceToAnalysisRequest.validate_identifiers()` (see
+`bundle_post_order_identifiers.rst`), now applied to `ResourceToPatient`,
+`ResourceToOrganisation` and `ResourceToContact`:
 
 1. **Rejection of usual identifier**: a `Patient`, `Organization` or
    `Practitioner` carrying an identifier with `use="usual"` is rejected, since
@@ -26,7 +26,7 @@ now applied to `ResourceToPatient`, `ResourceToOrganisation` and
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_09
+    bin/test test_doctests -t bundle_post_identifiers
 
 
 Test Setup

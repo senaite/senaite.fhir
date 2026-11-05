@@ -16,12 +16,12 @@ Request``. Both use the same all-or-none rollback as every other bundle
 validation failure.
 
 This file covers the mechanics end-to-end for ``Patient``.
-``bundle_post_12`` spot-checks ``Organization``/``Practitioner`` and a couple
-of cross-cutting edge cases.
+``bundle_post_if_none_exist_org_practitioner`` spot-checks
+``Organization``/``Practitioner`` and a couple of cross-cutting edge cases.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_11
+    bin/test test_doctests -t bundle_post_if_none_exist
 
 
 Test Setup
@@ -75,7 +75,7 @@ Helpers:
 Each scenario below that creates or links a Patient uses its own Patient
 placeholder id, so a later scenario's link doesn't silently steal the FHIR
 id a previous scenario already linked to a different Patient (the same
-gotcha documented in ``bundle_post_06`` for ServiceRequest ids). The
+gotcha documented in ``bundle_post_order_detail`` for ServiceRequest ids). The
 ServiceRequest's ``subject`` reference is a literal ``Patient/{id}`` pointing
 at the fixture's original placeholder, so it must be repointed too:
 
