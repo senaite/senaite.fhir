@@ -10,6 +10,8 @@ Organization.
 - The `contact` of an Organization is optional: it carries the address, phone
   and email of the Client, which are left empty when the Organization has
   none.
+- The ClientID is required, as it is the only key: without it, every bundle
+  would create another Client.
 - The name is required, as it is the name of the Client.
 - A ClientID shared by more than one Client cannot be resolved without
   guessing, so the bundle is rejected with `412 Precondition Failed`, naming
@@ -157,13 +159,14 @@ Client: a new one is created:
     1
 
 An Organization with the ClientID of an existing Client is that Client, even
-with another name. The Client is updated, and no other is created:
+with another name. The Client is updated, with the name stripped of
+surrounding spaces, and no other is created:
 
     >>> before = len(clients())
     >>> bundle = new_bundle("a2a2a2a2-a2a2-5a2a-9a2a-a2a2a2a2a2a2",
     ...                     "b2b2b2b2-b2b2-5b2b-9b2b-b2b2b2b2b2b2",
     ...                     "ORG-RMH-NEW")
-    >>> get_entry(bundle, "Organization")["resource"]["name"] = u"Renamed"
+    >>> get_entry(bundle, "Organization")["resource"]["name"] = u"  Renamed "
     >>> status, response = post_bundle(bundle)
     >>> status
     '200 OK'
@@ -246,4 +249,30 @@ Nothing was created nor updated:
     []
     >>> new_client.getName()
     'Renamed'
+
+
+Rejection: an Organization without ClientID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ClientID is the only key the Organization is matched by, so an
+Organization without external identifier is rejected:
+
+    >>> before = len(clients())
+    >>> bundle = new_bundle("a5a5a5a5-a5a5-5a5a-9a5a-a5a5a5a5a5a5",
+    ...                     "b5b5b5b5-b5b5-5b5b-9b5b-b5b5b5b5b5b5",
+    ...                     "unused")
+    >>> del get_entry(bundle, "Organization")["resource"]["identifier"]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> issue = outcome["issue"][0]
+    >>> issue["code"], issue["expression"]
+    (u'invalid', [u'Organization.identifier'])
+    >>> print(issue["details"]["text"])
+    Missing external identifier in Organization
+
+Nothing was created:
+
+    >>> len(clients()) == before
+    True
 

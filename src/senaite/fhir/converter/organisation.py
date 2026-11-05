@@ -57,10 +57,17 @@ class ResourceToOrganisation(ResourceToContent):
 
     def validate(self):
         """Raises a ResourceValidationError if the resource violates any of
-        the validation rules. The name is required, as it is the name of the
-        Client
+        the validation rules. The external identifier is required, as it is
+        the only key the Organization is matched to its Client by (the
+        ClientID): without it, every request would create another Client. The
+        name is required, as it is the name of the Client
         """
         super(ResourceToOrganisation, self).validate()
+        identifier = self.resource.get_external_id()
+        if not identifier or not identifier.value:
+            raise ResourceValidationError(
+                "Missing external identifier in Organization",
+                expression=["Organization.identifier"], code="invalid")
         if not self.get_name():
             raise ResourceValidationError(
                 "Missing name in Organization",
