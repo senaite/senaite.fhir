@@ -9,7 +9,7 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.config import FHIR_BASE_URL
-from senaite.fhir.exceptions import ResourceValidationError
+from senaite.fhir.exceptions import IdentifierValidationError
 from senaite.fhir.interfaces import IFHIRToContent
 from zope.deprecation import deprecate
 from zope.interface import implementer
@@ -77,7 +77,7 @@ class ResourceToContent(object):
         self.validate_identifiers()
 
     def validate_identifiers(self):
-        """Raises a ResourceValidationError if the identifiers of the
+        """Raises an IdentifierValidationError if the identifiers of the
         resource do not follow the identifiers pattern. A resource that
         supports no external identifier cannot carry any identifier at all,
         whatever its `use`
@@ -90,7 +90,7 @@ class ResourceToContent(object):
         self.validate_external_identifier(self.external_id_system)
 
     def validate_no_identifier(self, resource=None):
-        """Raises a ResourceValidationError if the resource carries any
+        """Raises an IdentifierValidationError if the resource carries any
         identifier at all, whatever its `use`. For resources that support no
         identifier, such as ServiceRequest
 
@@ -101,10 +101,10 @@ class ResourceToContent(object):
         if resource.identifier:
             msg = "Cannot specify any identifier in {}".format(
                 resource.resourceType)
-            raise self.get_identifier_error(resource, msg)
+            raise IdentifierValidationError(resource, msg)
 
     def validate_internal_identifier(self, resource=None):
-        """Raises a ResourceValidationError if the resource carries an
+        """Raises an IdentifierValidationError if the resource carries an
         internal (usual) identifier. These are assigned by SENAITE only
         after creation and can never be supplied by the API consumer
 
@@ -118,10 +118,10 @@ class ResourceToContent(object):
                 "Cannot specify usual identifier externally in incoming "
                 "{}:{}"
             ).format(resource.resourceType, object_id.value)
-            raise self.get_identifier_error(resource, msg)
+            raise IdentifierValidationError(resource, msg)
 
     def validate_external_identifier(self, system_id, resource=None):
-        """Raises a ResourceValidationError if the external (secondary)
+        """Raises an IdentifierValidationError if the external (secondary)
         identifier of the resource, if any, has no system or a system other
         than the NamingSystem with the given id
 
@@ -139,17 +139,7 @@ class ResourceToContent(object):
             msg = (
                 "Unsupported identifier system in {}: {}"
             ).format(resource.resourceType, external_id.system)
-            raise self.get_identifier_error(resource, msg)
-
-    def get_identifier_error(self, resource, message):
-        """Returns the ResourceValidationError for an invalid identifier of
-        the given resource
-        """
-        return ResourceValidationError(
-            message,
-            expression=["{}.identifier".format(resource.resourceType)],
-            code="invalid",
-        )
+            raise IdentifierValidationError(resource, msg)
 
 
 def to_fhir_profile_url(resource_type):
