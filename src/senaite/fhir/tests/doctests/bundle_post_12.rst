@@ -266,6 +266,55 @@ The new Sample's Contact is the matched, pre-existing Practitioner:
     1
 
 
+Success: a Practitioner of another Client is not matched
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A Contact belongs to a Client, and the Sample's Contact must belong to the
+Sample's Client. So ``ifNoneExist`` only matches a Practitioner within the
+Client of the bundle's Organization. A Contact of another Client with the
+same external id is not matched:
+
+    >>> other_client = api.create(portal.clients, "Client",
+    ...                           ClientID="ORG-OTHER")
+    >>> other_client.setName(u"Other Hospital")
+    >>> other_client.reindexObject()
+    >>> stranger = api.create(other_client, "Contact",
+    ...                       Firstname="Other", Surname="Doctor")
+    >>> stranger.setFHIRExternalID(u"PRACT-OTHER-CLIENT")
+    >>> stranger.reindexObject()
+    >>> transaction.commit()
+    >>> before = len(client.getContacts())
+
+    >>> bundle = load_bundle()
+    >>> set_sr_id(bundle, "e6e6e6e6-e6e6-5e6e-9e6e-e6e6e6e6e6e6")
+    >>> set_practitioner_id(bundle, "f6f6f6f6-f6f6-5f6f-9f6f-f6f6f6f6f6f6")
+    >>> entry = get_entry(bundle, "Practitioner")
+    >>> for identifier in entry["resource"]["identifier"]:
+    ...     if identifier.get("use") == "secondary":
+    ...         identifier["value"] = u"PRACT-OTHER-CLIENT"
+    >>> entry["request"]["ifNoneExist"] = (
+    ...     "identifier=https://fhir.senaite.org/NamingSystem/"
+    ...     "practitioner-external-id|PRACT-OTHER-CLIENT")
+    >>> status, response = post_bundle(bundle)
+    >>> status
+    '200 OK'
+    >>> entry_status(response, "Practitioner")
+    u'201 Created'
+
+A new Contact was created in the bundle's Client, and the other Client's
+Contact was left alone:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.getContacts()) == before + 1
+    True
+    >>> created = [c for c in client.getContacts()
+    ...            if c.getFHIRExternalID() == "PRACT-OTHER-CLIENT"]
+    >>> len(created)
+    1
+    >>> other_client.getContacts() == [stranger]
+    True
+
+
 Rejection: more than one match cannot be evaluated safely (412)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

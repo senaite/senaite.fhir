@@ -11,6 +11,7 @@ from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
 from senaite.fhir.config import PRACTITIONER_ID_SYSTEM
 from senaite.fhir.converter import to_naming_system_url
+from senaite.fhir.converter.contact import ResourceToContact
 from senaite.fhir.exceptions import ResourceValidationError
 from senaite.patient.catalog import PATIENT_CATALOG
 
@@ -105,7 +106,8 @@ def find_by_if_none_exist(resource, raw):
     already satisfied and the submitted body must be discarded; more than
     one match rejects the whole bundle with 412 Precondition Failed. A
     malformed precondition (missing or unrecognized system, or no value)
-    rejects the whole bundle with 400 Bad Request.
+    rejects the whole bundle with 400 Bad Request. A Practitioner is only
+    matched within the Client of the bundle's Organization.
 
     :param resource: the FHIR resource being processed (Patient, Practitioner
         or Organization -- caller must have already confirmed via
@@ -142,7 +144,18 @@ def find_by_if_none_exist(resource, raw):
 
     portal_type = fapi.get_portal_type(resource)
     index = "id" if system == internal_system else external_index
-    brains = api.search({"portal_type": portal_type, index: value}, catalog)
+    query = {"portal_type": portal_type, index: value}
+
+    if resource_type == "Practitioner":
+        # a Contact belongs to a Client: match only within the Client of the
+        # bundle's Organization, as ContactFinder does. Otherwise a Contact
+        # of another Client would be assigned to the Sample
+        client = ResourceToContact(resource).get_parent()
+        if not client:
+            return None
+        query["path"] = {"query": api.get_path(client), "level": 0}
+
+    brains = api.search(query, catalog)
 
     if len(brains) > 1:
         raise ResourceValidationError(
