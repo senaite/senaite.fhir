@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from senaite.fhir import api as fapi
-from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IPatientResource
 from senaite.patient import api as papi
@@ -23,8 +21,7 @@ class PatientFinder(object):
         """Looks for the resource's counterpart Patient object
         """
         # search by MRN, the external identifier of the Patient
-        identifier = fapi.get_external_identifier(
-            self.resource, PATIENT_MRN_SYSTEM)
+        identifier = self.resource.get_external_id()
         if identifier and identifier.value:
             return papi.get_patient_by_mrn(identifier.value,
                                            include_inactive=True)

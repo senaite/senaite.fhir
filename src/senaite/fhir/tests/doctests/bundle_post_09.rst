@@ -152,8 +152,8 @@ Another one is rejected, even when it comes after a valid MRN:
     >>> no_clients_created()
     True
 
-The external identifier of a resource is picked by its `NamingSystem`, not
-by its position:
+The external identifier of a resource is the one with the `NamingSystem` its
+type supports, whatever its position:
 
     >>> from senaite.fhir import api as fapi
     >>> resource = fapi.to_fhir_resource({
@@ -168,9 +168,25 @@ by its position:
     ...         "value": "MRN-VALID",
     ...     }],
     ... })
-    >>> fapi.get_external_identifier(resource, "patient-mrn").value
+    >>> resource.external_id_system
+    'patient-mrn'
+    >>> resource.get_external_id().value
     'MRN-VALID'
-    >>> fapi.get_external_identifier(resource, "organization-external-id")
+
+A resource whose type supports no external identifier has none:
+
+    >>> service_request = fapi.to_fhir_resource({
+    ...     "resourceType": "ServiceRequest",
+    ...     "identifier": [{
+    ...         "use": "secondary",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+    ...         "value": "MRN-VALID",
+    ...     }],
+    ... })
+    >>> service_request.external_id_system is None
+    True
+    >>> service_request.get_external_id() is None
+    True
 
 
 Rejection: Organization with a usual identifier

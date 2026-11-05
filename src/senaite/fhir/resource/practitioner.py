@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from senaite.core.api import dtime
+from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
 from senaite.fhir.datatype.address import Address
 from senaite.fhir.datatype.backboneelement import BackboneElement
 from senaite.fhir.datatype.contactpoint import ContactPoint
@@ -13,6 +14,8 @@ from zope.interface import implementer
 
 @implementer(IPractitionerResource)
 class PractitionerResource(FHIRResource):
+
+    external_id_system = PRACTITIONER_EXTERNAL_ID_SYSTEM
 
     @property
     def active(self):

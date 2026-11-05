@@ -47,10 +47,6 @@ class ResourceToContent(object):
     https://fhir.senaite.org/identifiers.html
     """
 
-    # NamingSystem id of the external identifier the resource supports (e.g.
-    # `patient-mrn`). None if the resource cannot carry any identifier
-    external_id_system = None
-
     def __init__(self, resource):
         self.resource = resource
 
@@ -65,17 +61,9 @@ class ResourceToContent(object):
 
     def validate_identifiers(self):
         """Raises an IdentifierValidationError if the identifiers of the
-        resource do not follow the identifiers pattern. A resource that
-        supports no external identifier cannot carry any identifier at all,
-        whatever its `use`
+        resource do not follow the identifiers pattern
         """
-        if not self.external_id_system:
-            fapi.validate_no_identifier(self.resource)
-            return
-
-        fapi.validate_internal_identifier(self.resource)
-        fapi.validate_external_identifier(
-            self.resource, self.external_id_system)
+        fapi.validate_identifiers(self.resource)
 
 
 def to_fhir_profile_url(resource_type):

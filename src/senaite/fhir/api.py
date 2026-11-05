@@ -662,18 +662,21 @@ def get_external_identifiers(resource):
     return [item for item in identifiers if item.use == "secondary"]
 
 
-def get_external_identifier(resource, system_id):
-    """Returns the external (secondary) identifier of the resource with the
-    NamingSystem of the given id, if any. Returns None otherwise
+def validate_identifiers(resource):
+    """Raises an IdentifierValidationError if the identifiers of the incoming
+    resource do not follow the identifiers pattern. A resource whose type
+    supports no external identifier cannot carry any identifier at all,
+    whatever its `use`
+    https://fhir.senaite.org/identifiers.html
 
-    :param resource: the FHIR resource
-    :param system_id: id of the NamingSystem (e.g. `patient-mrn`)
+    :param resource: the incoming FHIR resource to validate
     """
-    system = to_naming_system_url(system_id)
-    for identifier in get_external_identifiers(resource):
-        if identifier.system == system:
-            return identifier
-    return None
+    if not resource.external_id_system:
+        validate_no_identifier(resource)
+        return
+
+    validate_internal_identifier(resource)
+    validate_external_identifier(resource)
 
 
 def validate_no_identifier(resource):
@@ -704,17 +707,15 @@ def validate_internal_identifier(resource):
         raise IdentifierValidationError(resource, msg)
 
 
-def validate_external_identifier(resource, system_id):
+def validate_external_identifier(resource):
     """Raises an IdentifierValidationError if any of the external (secondary)
     identifiers of the resource has no system or a system other than the
-    NamingSystem with the given id. A resource can only carry external
-    identifiers of the system it supports, whatever their position
+    NamingSystem its type supports. A resource can only carry external
+    identifiers of that system, whatever their position
 
     :param resource: the incoming FHIR resource to validate
-    :param system_id: id of the NamingSystem the external identifiers must
-        have (e.g. `patient-mrn`)
     """
-    system = to_naming_system_url(system_id)
+    system = to_naming_system_url(resource.external_id_system)
     for identifier in get_external_identifiers(resource):
         if identifier.system != system:
             msg = (

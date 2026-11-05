@@ -235,8 +235,6 @@ class PatientToResource(object):
 @implementer(IFHIRToContent)
 class ResourceToPatient(ResourceToContent):
 
-    external_id_system = PATIENT_MRN_SYSTEM
-
     def to_content_dict(self):
         self.validate()
 
@@ -301,8 +299,7 @@ class ResourceToPatient(ResourceToContent):
     def get_mrn(self):
         """Returns the MRN from the resource
         """
-        identifier = fapi.get_external_identifier(
-            self.resource, PATIENT_MRN_SYSTEM)
+        identifier = self.resource.get_external_id()
         return identifier.value if identifier else None
 
     def get_sex(self):

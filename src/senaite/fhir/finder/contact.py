@@ -2,8 +2,6 @@
 
 from bika.lims import api
 from senaite.core.catalog import CONTACT_CATALOG
-from senaite.fhir import api as fapi
-from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
 from senaite.fhir.converter.contact import ResourceToContact
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IPractitionerResource
@@ -25,8 +23,7 @@ class ContactFinder(object):
         """Looks for the resource's counterpart Contact object
         """
         # search by the external identifier of the Practitioner
-        identifier = fapi.get_external_identifier(
-            self.resource, PRACTITIONER_EXTERNAL_ID_SYSTEM)
+        identifier = self.resource.get_external_id()
         if not identifier or not identifier.value:
             return None
 

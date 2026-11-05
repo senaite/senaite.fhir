@@ -175,9 +175,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
 
         specimen = self.get_specimen()
         if specimen:
-            fapi.validate_internal_identifier(specimen)
-            fapi.validate_external_identifier(
-                specimen, CLIENT_SAMPLE_ID_SYSTEM)
+            fapi.validate_identifiers(specimen)
 
     def to_content_dict(self):
         # TODO We don't validate category + SNOMED code (is necessary?)
@@ -383,8 +381,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
         specimen = self.get_specimen()
         if not specimen:
             return None
-        external = fapi.get_external_identifier(
-            specimen, CLIENT_SAMPLE_ID_SYSTEM)
+        external = specimen.get_external_id()
         return external.value if external else None
 
     @memoize
