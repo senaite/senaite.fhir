@@ -4,6 +4,7 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #54 Resolve Clients by ClientID only, rejecting duplicates and empty names
 - #52 Fix the creation of a Client from an Organization
 - #49 Preserve request order in transaction response bundles
 - #48 Add SVG barcode attachment as FHIR's Specimen extension
