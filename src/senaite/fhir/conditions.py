@@ -4,6 +4,12 @@ from bika.lims import api
 from senaite.core.catalog import CLIENT_CATALOG
 from senaite.core.catalog import CONTACT_CATALOG
 from senaite.fhir import api as fapi
+from senaite.fhir.config import ORGANIZATION_EXTERNAL_ID_SYSTEM
+from senaite.fhir.config import ORGANIZATION_ID_SYSTEM
+from senaite.fhir.config import PATIENT_ID_SYSTEM
+from senaite.fhir.config import PATIENT_MRN_SYSTEM
+from senaite.fhir.config import PRACTITIONER_EXTERNAL_ID_SYSTEM
+from senaite.fhir.config import PRACTITIONER_ID_SYSTEM
 from senaite.fhir.converter import to_naming_system_url
 from senaite.fhir.exceptions import ServiceRequestValidationError
 from senaite.patient.catalog import PATIENT_CATALOG
@@ -12,13 +18,14 @@ from senaite.patient.catalog import PATIENT_CATALOG
 #                    external-identifier NamingSystem id, external index)
 MATCH_TABLE = {
     "Patient": (
-        PATIENT_CATALOG, "patient-id", "patient-mrn", "patient_mrn"),
+        PATIENT_CATALOG, PATIENT_ID_SYSTEM, PATIENT_MRN_SYSTEM,
+        "patient_mrn"),
     "Practitioner": (
-        CONTACT_CATALOG, "practitioner-id", "practitioner-external-id",
-        "fhir_external_id"),
+        CONTACT_CATALOG, PRACTITIONER_ID_SYSTEM,
+        PRACTITIONER_EXTERNAL_ID_SYSTEM, "fhir_external_id"),
     "Organization": (
-        CLIENT_CATALOG, "organization-id", "organization-external-id",
-        "getClientID"),
+        CLIENT_CATALOG, ORGANIZATION_ID_SYSTEM,
+        ORGANIZATION_EXTERNAL_ID_SYSTEM, "getClientID"),
 }
 
 
