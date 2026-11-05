@@ -8,6 +8,7 @@ from bika.lims.workflow import doActionFor as do_action_for
 from senaite.core.api import dtime
 from senaite.core.api import workflow as wapi
 from senaite.fhir import api as fapi
+from senaite.fhir import conditions
 from senaite.fhir import logger
 from senaite.fhir.api import find_object_for
 from senaite.fhir.config import DEFAULT_BUNDLE_PAGE_COUNT
@@ -102,7 +103,16 @@ def post(context, request, resource_type=None):
     # get the FHIR resources from the request
     resources = get_fhir_resources()
 
+    # reject the conditional creates of resource types that do not support
+    # them, before anything is processed
+    for resource in resources:
+        try:
+            conditions.validate_if_none_exist(resource)
+        except ResourceValidationError as e:
+            return get_validation_outcome(request, e)
+
     entries = []
+    issues = []
     for resource in resources:
 
         # Skip if creation or update of this resource is not supported
@@ -112,31 +122,37 @@ def post(context, request, resource_type=None):
         # create or update the counterpart object
         try:
             # validate before searching the counterpart object, so the rules
-            # apply whatever happens next: creation, update or a match
+            # apply whatever happens next: creation, update or a match,
+            # including a conditional create that matches an existing object
             fapi.validate(resource)
 
-            obj = find_object_for(resource)
-            if not obj:
-                obj = fapi.create(resource)
-                status = "201 Created"
+            if_none_exist = conditions.get_if_none_exist(resource)
+            if if_none_exist:
+                # Conditional create: evaluate the ifNoneExist precondition
+                # instead of the generic find-or-create flow below. A match
+                # discards the submitted body entirely (no fapi.update) --
+                # only the FHIR id used by this bundle is linked to it.
+                obj = conditions.find_by_if_none_exist(resource, if_none_exist)  # noqa: E501
+                if obj:
+                    fapi.link_fhir_resource(obj, resource)
+                    status = "200 OK"
+                    # warn if the discarded body names another identifier
+                    issue = conditions.get_if_none_exist_warning(resource, obj)
+                    if issue:
+                        issues.append(issue)
+                else:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
             else:
-                obj = fapi.update(obj, resource)
-                status = "200 OK"
+                obj = find_object_for(resource)
+                if not obj:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
+                else:
+                    obj = fapi.update(obj, resource)
+                    status = "200 OK"
         except ResourceValidationError as e:
-            transaction.abort()
-            code = getattr(e, "code", "business-rule")
-            status_code = 400
-            if code == "conflict":
-                status_code = 409
-
-            request.response.setStatus(status_code)
-            issue = {
-                "severity": "error",
-                "code": code,
-                "details": {"text": str(e)},
-                "expression": e.expression,
-            }
-            return OperationOutcome({"issue": [issue]})
+            return get_validation_outcome(request, e)
         except Exception:
             # Unexpected failure: roll back the whole bundle (all-or-none),
             # log the details server-side and return a generic error. Never
@@ -202,7 +218,38 @@ def post(context, request, resource_type=None):
         "type": "transaction-response",
         "entry": entries,
     }
+    if issues:
+        resp["issues"] = {
+            "resourceType": "OperationOutcome",
+            "issue": issues,
+        }
     return BundleResponseResource(resp)
+
+
+def get_validation_outcome(request, error):
+    """Rolls back the transaction and returns the OperationOutcome for the
+    given ResourceValidationError, with the HTTP status that matches its
+    issue code
+
+    :param request: the current request
+    :param error: the ResourceValidationError raised
+    """
+    transaction.abort()
+    code = getattr(error, "code", "business-rule")
+    status_code = 400
+    if code == "conflict":
+        status_code = 409
+    elif code == "multiple-matches":
+        status_code = 412
+
+    request.response.setStatus(status_code)
+    issue = {
+        "severity": "error",
+        "code": code,
+        "details": {"text": str(error)},
+        "expression": error.expression,
+    }
+    return OperationOutcome({"issue": [issue]})
 
 
 def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
