@@ -102,15 +102,22 @@ class Bundle(FHIRResource):
         """
         return get_by_key(self.entry, key, value)
 
+    def get_entry(self, resource):
+        """Returns the raw entry (as submitted, keeping `fullUrl` and
+        `request`) of the given (already-extracted) FHIRResource, or None.
+        Matched by the entry's id, as the raw resource of a POSTed entry
+        carries none (see `get_entry_id`)
+        """
+        for entry in self.get("entry") or []:
+            if get_entry_id(entry) == resource.id:
+                return entry
+        return None
+
     def get_request(self, resource):
         """Returns the raw `request` dict (method/url/ifNoneExist/...)
         declared on the given (already-extracted) FHIRResource's bundle
         entry, or {} when the entry carries none.
         https://hl7.org/fhir/R5/bundle-definitions.html#Bundle.entry.request
         """
-        # match by the entry's id, as the raw resource of a POSTed entry
-        # carries none (see `get_entry_id`)
-        for entry in self.get("entry") or []:
-            if get_entry_id(entry) == resource.id:
-                return entry.get("request") or {}
-        return {}
+        entry = self.get_entry(resource) or {}
+        return entry.get("request") or {}
