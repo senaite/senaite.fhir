@@ -272,6 +272,25 @@ Rejection: Practitioner with a usual identifier
     True
 
 
+Rejection: Practitioner with an unsupported external identifier system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Practitioner")
+    >>> entry["resource"]["identifier"] = [{
+    ...     "use": "secondary",
+    ...     "system": "https://example.org/NamingSystem/their-own-id",
+    ...     "value": "PRACT-OTHER-SYSTEM"
+    ... }]
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> "Unsupported identifier system in Practitioner" in error_text(outcome)
+    True
+    >>> no_clients_created()
+    True
+
+
 Rejection: Practitioner with an external identifier carrying no system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
