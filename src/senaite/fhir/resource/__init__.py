@@ -3,6 +3,7 @@ import copy
 import sys
 
 from senaite.core.api import dtime
+from senaite.fhir.api import to_naming_system_url
 from senaite.fhir.converter import first_by
 from senaite.fhir.converter import get_by_key
 from senaite.fhir.datatype.extension import Extension
@@ -24,6 +25,12 @@ class FHIRResource(dict):
     )
 
     __fixed_values = tuple()
+
+    # Id of the NamingSystem of the external identifier (`use="secondary"`)
+    # this resource type supports, the one assigned by the API consumer (e.g.
+    # `patient-mrn`). None if the resource type supports no identifier.
+    # https://fhir.senaite.org/identifiers.html
+    external_id_system = None
 
     def __init__(self, seq=None, **kwargs):
         super(FHIRResource, self).__init__(seq, **kwargs)
@@ -84,12 +91,19 @@ class FHIRResource(dict):
     def get_external_id(self):
         """Returns the Identifier object representing the identifier
         originating from the API's consumer system (e.g. the ordering EHR or
-        middleware)
+        middleware): the external (secondary) identifier with the NamingSystem
+        this resource type supports. Returns None if there is no such
+        identifier, or if the resource type supports no identifier
         https://fhir.senaite.org/identifiers.html
         """
-        # TODO Move this function to fapi.resource
-        identifiers = getattr(self, "identifier", [])
-        return first_by(identifiers, use="secondary")
+        if not self.external_id_system:
+            return None
+        system = to_naming_system_url(self.external_id_system)
+        identifiers = getattr(self, "identifier", None) or []
+        for identifier in identifiers:
+            if identifier.use == "secondary" and identifier.system == system:
+                return identifier
+        return None
 
     def get_object_id(self):
         """Returns the Identifier object representing the internal identifier

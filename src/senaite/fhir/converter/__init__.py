@@ -8,22 +8,12 @@ from senaite.core.api import geo
 from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
+from senaite.fhir import api as fapi
+from senaite.fhir.api import to_naming_system_url
 from senaite.fhir.config import FHIR_BASE_URL
+from senaite.fhir.interfaces import IFHIRToContent
 from zope.deprecation import deprecate
-
-
-def to_naming_system_url(system_id):
-    """Returns the canonical NamingSystem URI for an identifier namespace
-
-    `system_id` is the NamingSystem id as published in the implementation
-    guide, e.g. `sample-id`, `analysis-id` or `client-sample-id`. The URI it
-    builds is what a FHIR `Identifier.system` has to carry for a consumer to
-    tell one namespace from another, so it serves both to stamp outgoing
-    identifiers (see `to_fhir_identifier`) and to check the system of the
-    incoming ones.
-    https://fhir.senaite.org/identifiers.html
-    """
-    return "%s/NamingSystem/%s" % (FHIR_BASE_URL, system_id)
+from zope.interface import implementer
 
 
 def to_code_system_url(system_id):
@@ -43,6 +33,37 @@ def to_fhir_identifier(system_id, value, use=None):
     if use:
         data["use"] = use
     return data
+
+
+@implementer(IFHIRToContent)
+class ResourceToContent(object):
+    """Base converter of an incoming FHIR resource into a content dict
+
+    Holds the validation rules shared by the converters of the resources a
+    consumer can create or update. The identifiers follow the SENAITE
+    pattern: the internal one (`use="usual"`) is assigned by SENAITE after
+    the object is created, so the consumer can only send the external one
+    (`use="secondary"`), with the system the resource supports.
+    https://fhir.senaite.org/identifiers.html
+    """
+
+    def __init__(self, resource):
+        self.resource = resource
+
+    def to_content_dict(self):
+        raise NotImplementedError("Must be implemented by subclass")
+
+    def validate(self):
+        """Raises a ResourceValidationError if the resource violates any of
+        the validation rules
+        """
+        self.validate_identifiers()
+
+    def validate_identifiers(self):
+        """Raises an IdentifierValidationError if the identifiers of the
+        resource do not follow the identifiers pattern
+        """
+        fapi.validate_identifiers(self.resource)
 
 
 def to_fhir_profile_url(resource_type):

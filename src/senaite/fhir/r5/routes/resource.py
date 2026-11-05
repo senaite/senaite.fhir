@@ -21,8 +21,7 @@ from senaite.fhir.r5 import add_route
 from senaite.fhir.resource.bundleresponse import BundleResponseResource
 from senaite.fhir.resource.operationoutcome import OperationOutcome
 from senaite.fhir.resource.resultsbundle import ResultsBundleResource
-from senaite.fhir.exceptions import ObservationValidationError
-from senaite.fhir.exceptions import ServiceRequestValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.resource.servicerequestrevoked import ServiceRequestRevocationError  # noqa: E501
 from senaite.fhir.resource.servicerequestrevoked import ServiceRequestRevocationResource  # noqa: E501
 from senaite.jsonapi import api as japi
@@ -112,6 +111,10 @@ def post(context, request, resource_type=None):
 
         # create or update the counterpart object
         try:
+            # validate before searching the counterpart object, so the rules
+            # apply whatever happens next: creation, update or a match
+            fapi.validate(resource)
+
             obj = find_object_for(resource)
             if not obj:
                 obj = fapi.create(resource)
@@ -119,7 +122,7 @@ def post(context, request, resource_type=None):
             else:
                 obj = fapi.update(obj, resource)
                 status = "200 OK"
-        except (ServiceRequestValidationError, ObservationValidationError) as e:  # noqa: E501
+        except ResourceValidationError as e:
             transaction.abort()
             code = getattr(e, "code", "business-rule")
             status_code = 400

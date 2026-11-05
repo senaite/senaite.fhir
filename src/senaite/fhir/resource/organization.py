@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from senaite.fhir.config import ORGANIZATION_EXTERNAL_ID_SYSTEM
 from senaite.fhir.datatype.backboneelement import BackboneElement
 from senaite.fhir.datatype.extendedcontactdetail import ExtendedContactDetail
 from senaite.fhir.datatype.identifier import Identifier
@@ -9,6 +10,8 @@ from zope.interface import implementer
 
 @implementer(IOrganizationResource)
 class OrganizationResource(FHIRResource):
+
+    external_id_system = ORGANIZATION_EXTERNAL_ID_SYSTEM
 
     @property
     def active(self):

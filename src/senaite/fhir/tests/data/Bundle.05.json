@@ -21,6 +21,7 @@
         "identifier": [
           {
             "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
             "value": "PAT-2026-00841"
           }
         ],
@@ -84,6 +85,7 @@
         "identifier": [
           {
             "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/organization-external-id",
             "value": "ORG-HLTH-CYM-001"
           }
         ],
@@ -133,6 +135,7 @@
         "identifier": [
           {
             "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/practitioner-external-id",
             "value": "PRACT-DR-MBEKI"
           }
         ],

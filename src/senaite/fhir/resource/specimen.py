@@ -2,6 +2,7 @@
 
 from senaite.core.api import dtime
 from senaite.fhir import api as fapi
+from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.converter import get_by_key
 from senaite.fhir.datatype.codeableconcept import CodeableConcept
 from senaite.fhir.datatype.codeablereference import CodeableReference
@@ -13,6 +14,8 @@ from zope.interface import implementer
 
 @implementer(ISpecimenResource)
 class SpecimenResource(FHIRResource):
+
+    external_id_system = CLIENT_SAMPLE_ID_SYSTEM
 
     @property
     def type(self):

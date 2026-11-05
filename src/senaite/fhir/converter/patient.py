@@ -6,7 +6,10 @@ from senaite.core.schema.addressfield import OTHER_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir import api as fapi
+from senaite.fhir.config import PATIENT_ID_SYSTEM
+from senaite.fhir.config import PATIENT_MRN_SYSTEM
 from senaite.fhir.converter import group_by
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
@@ -67,14 +70,16 @@ class PatientToResource(object):
     def get_fhir_identifiers(self):
         # basic identifiers
         identifiers = [
-            to_fhir_id("context", self.patient.getId(), use="usual"),
-            to_fhir_id("mrn", self.patient.getMRN(), use="official")
+            to_fhir_id(PATIENT_ID_SYSTEM, self.patient.getId(), use="usual"),
+            to_fhir_id(
+                PATIENT_MRN_SYSTEM, self.patient.getMRN(), use="secondary")
         ]
-        # secondary identifiers
+        # additional identifiers of the patient (e.g. a national id), without
+        # `use`. The profile slices `identifier` by `use`, and the MRN is the
+        # only external (`secondary`) identifier of the patient
         for key, value in self.patient.get_identifier_items():
             sys_id = fapi.slugify(key)
-            fhir_id = to_fhir_id(sys_id, value, use="secondary")
-            identifiers.append(fhir_id)
+            identifiers.append(to_fhir_id(sys_id, value))
         # remove empties
         return list(filter(None, identifiers))
 
@@ -229,12 +234,11 @@ class PatientToResource(object):
 
 @adapter(IPatientResource)
 @implementer(IFHIRToContent)
-class ResourceToPatient(object):
-
-    def __init__(self, resource):
-        self.resource = resource
+class ResourceToPatient(ResourceToContent):
 
     def to_content_dict(self):
+        self.validate()
+
         # Medical Record Number
         mrn = self.get_mrn()
         if not mrn:
@@ -296,7 +300,7 @@ class ResourceToPatient(object):
     def get_mrn(self):
         """Returns the MRN from the resource
         """
-        identifier = self.resource.get_identifier(use="secondary")
+        identifier = self.resource.get_external_id()
         return identifier.value if identifier else None
 
     def get_sex(self):

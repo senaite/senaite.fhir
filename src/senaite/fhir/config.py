@@ -3,6 +3,19 @@
 FHIR_BASE_URL = "https://fhir.senaite.org"
 FHIR_STORAGE_KEY = "senaite.fhir.storage"
 
+# Ids of the NamingSystems of the resources' identifiers: the internal one
+# (`use="usual"`), assigned by SENAITE, and the external one
+# (`use="secondary"`), assigned by the API consumer.
+# https://fhir.senaite.org/identifiers.html
+ANALYSIS_ID_SYSTEM = "analysis-id"
+CLIENT_SAMPLE_ID_SYSTEM = "client-sample-id"
+DEVICE_ID_SYSTEM = "device-id"
+ORGANIZATION_EXTERNAL_ID_SYSTEM = "organization-external-id"
+PATIENT_ID_SYSTEM = "patient-id"
+PATIENT_MRN_SYSTEM = "patient-mrn"
+PRACTITIONER_EXTERNAL_ID_SYSTEM = "practitioner-external-id"
+SAMPLE_ID_SYSTEM = "sample-id"
+
 # Key of the content dict that IFHIRToContent converters use to hand over the
 # secondary FHIR resources of the object being created or updated
 SECONDARY_RESOURCES_KEY = "_fhir_secondary_resources"
