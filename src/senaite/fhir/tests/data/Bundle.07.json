@@ -1,0 +1,442 @@
+{
+  "resourceType": "Bundle",
+  "id": "f3a91c2e-4b12-5d6f-a8e3-863g72h7id9j",
+  "meta": {
+    "profile": [
+      "https://fhir.senaite.org/StructureDefinition/SenaiteRequestBundle"
+    ]
+  },
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "resource": {
+        "resourceType": "Patient",
+        "meta": {
+          "profile": [
+            "https://fhir.senaite.org/StructureDefinition/SenaitePatient"
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: Patient a1b2c3d4-e5f6-7890-abcd-ef1234567890</b></p><p>Marco Ferretti (official) Male, DoB: 1961-03-22 ( MRN-48291034 (use: secondary))</p></div>"
+        },
+        "identifier": [
+          {
+            "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/patient-mrn",
+            "value": "MRN-4829103"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Ferretti",
+            "given": [
+              "Marco"
+            ],
+            "prefix": [
+              "Mr."
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "+39 02 4800 1234",
+            "use": "home"
+          },
+          {
+            "system": "email",
+            "value": "marco.ferretti@example.it",
+            "use": "work"
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1961-03-22",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "Via Montenapoleone 8"
+            ],
+            "city": "Melbourne",
+            "state": "Victoria",
+            "postalCode": "3052",
+            "country": "AU"
+          }
+        ],
+        "maritalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-MaritalStatus",
+              "code": "M",
+              "display": "Married"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:b2c3d4e5-f6a7-8901-bcde-f12345678904",
+      "resource": {
+        "resourceType": "Organization",
+        "meta": {
+          "profile": [
+            "https://fhir.senaite.org/StructureDefinition/SenaiteOrganization"
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: Organization b2c3d4e5-f6a7-8901-bcde-f12345678901</b></p><p>identifier: ORG-OSP-MIL (use: secondary)</p><p>active: true</p><p>name: Ospedale Niguarda Milano</p></div>"
+        },
+        "identifier": [
+          {
+            "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/organization-external-id",
+            "value": "ORG-OSP-PIS"
+          }
+        ],
+        "active": true,
+        "name": "Ospedale Niguarda di Pisa",
+        "contact": [
+          {
+            "name": [
+              {
+                "use": "official",
+                "text": "Laboratory and Diagnostics Administration"
+              }
+            ],
+            "telecom": [
+              {
+                "system": "phone",
+                "value": "+39 02 6444 2000",
+                "use": "work"
+              },
+              {
+                "system": "email",
+                "value": "laboratorio@niguarda.it",
+                "use": "work"
+              }
+            ],
+            "address": {
+              "use": "work",
+              "type": "physical",
+              "line": [
+                "Piazza dell'Ospedale Maggiore 3"
+              ],
+              "city": "Melbourne",
+              "state": "Victoria",
+              "postalCode": "3052",
+              "country": "AU"
+            }
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Organization"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "resource": {
+        "resourceType": "Practitioner",
+        "meta": {
+          "profile": [
+            "https://fhir.senaite.org/StructureDefinition/SenaitePractitioner"
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: Practitioner c3d4e5f6-a7b8-9012-cdef-123456789012</b></p><p>identifier: PRACT-DR-RICCI (use: secondary)</p><p>active: true</p><p>name: Giulia Ricci (Official)</p><p>gender: Female</p><p>birthDate: 1975-11-08</p></div>"
+        },
+        "identifier": [
+          {
+            "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/practitioner-external-id",
+            "value": "PRACT-DR-RICCI"
+          }
+        ],
+        "active": true,
+        "name": [
+          {
+            "use": "official",
+            "family": "Ricci",
+            "given": [
+              "Giulia"
+            ],
+            "prefix": [
+              "Dr."
+            ],
+            "suffix": [
+              "MD FESC"
+            ]
+          }
+        ],
+        "telecom": [
+          {
+            "system": "email",
+            "value": "g.ricci@niguarda.it",
+            "use": "work"
+          },
+          {
+            "system": "phone",
+            "value": "+39 02 6444 3100",
+            "use": "work"
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1975-11-08",
+        "address": [
+          {
+            "use": "work",
+            "line": [
+              "Department of Cardiology",
+              "Ospedale Niguarda, Piazza dell'Ospedale Maggiore 3"
+            ],
+            "city": "Melbourne",
+            "state": "Victoria",
+            "postalCode": "3052",
+            "country": "AU"
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Practitioner"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:d4e5f6a7-b8c9-0123-defa-234567890130",
+      "resource": {
+        "resourceType": "Specimen",
+        "meta": {
+          "profile": [
+            "https://fhir.senaite.org/StructureDefinition/SenaiteSpecimen"
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: Specimen d4e5f6a7-b8c9-0123-defa-234567890124</b></p><p>type: Serum specimen</p><p>collector: Practitioner Giulia Ricci (official)</p><p>collected: 2026-05-14 06:15:00+0100</p><p>note: Urgent admission specimen. Collected on arrival to ED. No lipemia observed.</p></div>"
+        },
+        "type": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "119364003",
+              "display": "Blood"
+            }
+          ],
+          "text": "Blood"
+        },
+        "identifier": [
+          {
+            "use": "secondary",
+            "system": "https://fhir.senaite.org/NamingSystem/client-sample-id",
+            "value": "EXT-CARDIAC-003"
+          }
+        ],
+        "collection": {
+          "collector": {
+            "reference": "Practitioner/c3d4e5f6-a7b8-9012-cdef-123456789012"
+          },
+          "collectedDateTime": "2026-02-14T09:15:00+06:00",
+          "bodySite": {
+            "concept": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "49220004",
+                  "display": "Antecubital fossa"
+                }
+              ],
+              "text": "Antecubital fossa"
+            }
+          }
+        },
+        "note": [
+          {
+            "text": "Urgent admission specimen. Collected on arrival to ED. No lipemia observed."
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Specimen"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:81494bf2-fd84-4ee1-a0ca-cbf098e06667",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "meta": {
+          "profile": [
+            "https://fhir.senaite.org/StructureDefinition/SenaiteServiceRequest"
+          ]
+        },
+        "text": {
+          "status": "extensions",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: ServiceRequest e5f6a7b8-c9d0-1234-efab-345678901234</b></p><p>SENAITE Client: Organization Ospedale Niguarda Milano</p><p>identifier: EXT-CARDIAC-002 (use: secondary)</p><p>status: Active</p><p>intent: Order</p><p>category: Laboratory procedure</p><p>priority: Urgent</p><p>code: Cardiac enzymes panel</p></div>"
+        },
+        "extension": [
+          {
+            "url": "https://fhir.senaite.org/StructureDefinition/SenaiteClient",
+            "valueReference": {
+              "reference": "urn:uuid:b2c3d4e5-f6a7-8901-bcde-f12345678904"
+            }
+          }
+        ],
+        "status": "active",
+        "intent": "order",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "108252007",
+                "display": "Laboratory procedure"
+              }
+            ],
+            "text": "Laboratory procedure"
+          }
+        ],
+        "priority": "urgent",
+        "code": {
+          "concept": {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "882-1",
+                "display": "ABO Grouping and Rho(D) Typing"
+              }
+            ],
+            "text": "ABO Grouping and Rho(D) Typing"
+          }
+        },
+        "orderDetail": [
+          {
+            "parameter": [
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue",
+                      "code": "LOINC",
+                      "display": "Test Code"
+                    }
+                  ]
+                },
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "883-9",
+                      "display": "ABO group"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "parameter": [
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue",
+                      "code": "LOINC",
+                      "display": "Test Code"
+                    }
+                  ]
+                },
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "6690-2",
+                      "display": "White Blood Cells"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "parameter": [
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue",
+                      "code": "LOINC",
+                      "display": "Test Code"
+                    }
+                  ]
+                },
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "10331-7",
+                      "display": "Rh Type"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "parameter": [
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue",
+                      "code": "LOINC",
+                      "display": "Test Code"
+                    }
+                  ]
+                },
+                "valueCodeableConcept": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "19261-7",
+                      "display": "Amphetamines"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        },
+        "requester": {
+          "reference": "urn:uuid:c3d4e5f6-a7b8-9012-cdef-123456789012"
+        },
+        "specimen": [
+          {
+            "reference": "urn:uuid:d4e5f6a7-b8c9-0123-defa-234567890130"
+          }
+        ],
+        "note": [
+          {
+            "text": "ED admission. Patient presents with acute chest pain radiating to left arm, onset 2 hours prior. Rule out NSTEMI. Serial troponin required."
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "ServiceRequest"
+      }
+    }
+  ]
+}

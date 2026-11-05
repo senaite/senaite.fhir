@@ -1,0 +1,47 @@
+{
+  "resourceType": "Bundle",
+  "entry": [
+    {
+      "fullUrl": "Patient/a11b6e6b-5587-4c61-9c28-32c3880249b8",
+      "response": {
+        "status": "201 Created",
+        "lastModified": "2026-09-08T07:54:25-04:00"
+      }
+    },
+    {
+      "fullUrl": "Organization/d798a079-c848-4516-afe8-3e1d51769498",
+      "response": {
+        "status": "201 Created",
+        "lastModified": "2026-09-08T07:54:24-04:00"
+      }
+    },
+    {
+      "fullUrl": "Practitioner/106e6f4a-9c11-455b-9423-eea6324ed585",
+      "response": {
+        "status": "201 Created",
+        "lastModified": "2026-09-08T07:54:25-04:00"
+      }
+    },
+    {
+      "fullUrl": "Specimen/4c5e0f98-120a-41cd-9e2b-7dc3bd27f2da",
+      "response": {
+        "status": "201 Created",
+        "lastModified": "2026-09-08T07:54:26-04:00"
+      }
+    },
+    {
+      "fullUrl": "ServiceRequest/5f5ced6c-6e4f-4b37-a68e-04ddd700520f",
+      "response": {
+        "status": "201 Created",
+        "lastModified": "2026-09-08T07:54:26-04:00"
+      }
+    }
+  ],
+  "meta": {
+    "profile": [
+      "https://fhir.senaite.org/StructureDefinition/SenaiteBundleResponse"
+    ]
+  },
+  "type": "transaction-response",
+  "id": "f0a0f812-4e89-445d-abac-1581120556ed"
+}
