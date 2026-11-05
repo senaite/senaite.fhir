@@ -112,7 +112,8 @@ def post(context, request, resource_type=None):
         except ResourceValidationError as e:
             return get_validation_outcome(request, e)
 
-    entries = []
+    # (position of the request entry, response entry) pairs
+    responses = []
     issues = []
     for resource in resources:
 
@@ -187,14 +188,15 @@ def post(context, request, resource_type=None):
                 "lastModified": modified,
             }
         }
-        entries.append(entry)
+        responses.append((get_request_index(resource), entry))
 
         # If the resource is a ServiceRequest, process any Specimen resources
         if resource.resourceType == "ServiceRequest" and obj:
             specimen_entries = process_bundle_specimen(
                 resource, obj, status, modified
             )
-            entries.extend(specimen_entries)
+            for specimen, specimen_entry in specimen_entries:
+                responses.append((get_request_index(specimen), specimen_entry))
 
         # An Observation carries a result for an existing Analysis; once
         # applied (see ResourceToAnalysisResult), submit it
@@ -208,6 +210,11 @@ def post(context, request, resource_type=None):
             if resource.text:
                 obs["text"] = resource.text
             return obs
+
+    # the resources are processed in dependency order: restore the order of
+    # the request, as required by FHIR. Entries without a position go first
+    responses.sort(key=lambda response: (response[0] is not None, response[0]))
+    entries = [response_entry for _, response_entry in responses]
 
     # create the BundleResponse
     resp = {
@@ -225,6 +232,18 @@ def post(context, request, resource_type=None):
             "issue": issues,
         }
     return BundleResponseResource(resp)
+
+
+def get_request_index(resource):
+    """Returns the position of the entry of the given resource in the request
+    bundle, or None if the resource is not part of a bundle
+
+    :param resource: the FHIR resource of a bundle entry
+    """
+    bundle = resource.get("_bundle")
+    if not bundle:
+        return None
+    return bundle.get_entry_index(resource)
 
 
 def get_validation_outcome(request, error):
@@ -272,7 +291,8 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
     :param ar_obj: the AnalysisRequest content object
     :param ar_status: HTTP status string used for the AR entry
     :param ar_modified: ISO-formatted last-modified timestamp of the AR
-    :returns: list of bundle-response entry dicts, one per specimen
+    :returns: list of ``(specimen, bundle-response entry)`` tuples, one per
+              specimen
     """
     bundle = sr_resource.get("_bundle")
     if not bundle or not sr_resource.specimen:
@@ -298,14 +318,14 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
         # internal Sample ID. Fail rather than return an entry without it
         rendered_specimen = fapi.get_fhir_resource(
             ar_obj, resource_type="Specimen")
-        entries.append({
+        entries.append((specimen, {
             "fullUrl": "Specimen/{}".format(specimen.id),
             "resource": dict(rendered_specimen),
             "response": {
                 "status": ar_status,
                 "lastModified": ar_modified,
             },
-        })
+        }))
 
     return entries
 

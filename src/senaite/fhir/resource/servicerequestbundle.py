@@ -56,7 +56,7 @@ class ServiceRequestBundleResource(Bundle):
         """
         resources = super(ServiceRequestBundleResource, self).entry
         # TODO Sorting of entries inside a ServiceRequestBundle is not neat
-        # sort the entries so they are processed in the right order
+        # Sort only for processing, never for the response order.
         order = ["Organization", "Practitioner", "Specimen", "Patient",
                  "ServiceRequest"]
         return sorted(
