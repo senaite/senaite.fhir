@@ -9,9 +9,10 @@ either that type's internal (``...-id``) or external
 (``senaite.fhir.conditions.MATCH_TABLE``). Zero matches creates as normal.
 Exactly one match is treated as already-satisfied: the submitted body is
 discarded entirely and the existing object is left untouched. More than one
-match -- or a missing/unrecognized identifier system -- cannot be safely
-evaluated and rejects the whole transaction with ``412 Precondition
-Failed``, the same all-or-none rollback used by every other bundle
+match cannot be safely evaluated and rejects the whole transaction with
+``412 Precondition Failed``. A malformed ``ifNoneExist`` (missing or
+unrecognized identifier system, or no value) rejects it with ``400 Bad
+Request``. Both use the same all-or-none rollback as every other bundle
 validation failure.
 
 This file covers the mechanics end-to-end for ``Patient``.
@@ -122,16 +123,16 @@ Rejection: ifNoneExist with no identifier system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A malformed ``ifNoneExist`` (no ``system|value`` pair at all) cannot be
-evaluated safely and is rejected with 412, not silently ignored:
+evaluated and is rejected with 400, not silently ignored:
 
     >>> bundle = load_bundle()
     >>> entry = get_entry(bundle, "Patient")
     >>> entry["request"]["ifNoneExist"] = "identifier=MRN-SOMETHING"
     >>> status, outcome = post_bundle(bundle)
     >>> status
-    '412 Precondition Failed'
+    '400 Bad Request'
     >>> outcome["issue"][0]["code"]
-    u'multiple-matches'
+    u'invalid'
     >>> "Missing identifier system" in outcome["issue"][0]["details"]["text"]
     True
 
@@ -151,10 +152,30 @@ Rejection: ifNoneExist with an unrecognized identifier system
     ...     "|MRN-20394857")
     >>> status, outcome = post_bundle(bundle)
     >>> status
-    '412 Precondition Failed'
+    '400 Bad Request'
     >>> outcome["issue"][0]["code"]
-    u'multiple-matches'
-    >>> "Unsupported identifier system" in outcome["issue"][0]["details"]["text"]
+    u'invalid'
+    >>> "Unsupported identifier system" in (
+    ...     outcome["issue"][0]["details"]["text"])
+    True
+
+    >>> patient_count()
+    0
+
+
+Rejection: ifNoneExist with no identifier value
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    >>> bundle = load_bundle()
+    >>> entry = get_entry(bundle, "Patient")
+    >>> entry["request"]["ifNoneExist"] = (
+    ...     "identifier=https://fhir.senaite.org/NamingSystem/patient-mrn|")
+    >>> status, outcome = post_bundle(bundle)
+    >>> status
+    '400 Bad Request'
+    >>> outcome["issue"][0]["code"]
+    u'invalid'
+    >>> "Missing identifier value" in outcome["issue"][0]["details"]["text"]
     True
 
     >>> patient_count()

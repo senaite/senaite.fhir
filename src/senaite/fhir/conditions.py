@@ -74,18 +74,18 @@ def find_by_if_none_exist(resource, raw):
     Business rules (per issue #60): zero matches means the caller should
     proceed to create as normal; exactly one match means the entry is
     already satisfied and the submitted body must be discarded; more than
-    one match -- or a missing/unrecognized/valueless identifier, since the
-    precondition can't be safely evaluated either way -- rejects the whole
-    bundle with 412 Precondition Failed.
+    one match rejects the whole bundle with 412 Precondition Failed. A
+    malformed precondition (missing or unrecognized system, or no value)
+    rejects the whole bundle with 400 Bad Request.
 
     :param resource: the FHIR resource being processed (Patient, Practitioner
         or Organization -- caller must have already confirmed via
         get_if_none_exist that this type is supported)
     :param raw: the raw ifNoneExist string (from get_if_none_exist)
     :returns: the matched content object, or None for zero matches
-    :raises ResourceValidationError: code="multiple-matches" (mapped
-        to HTTP 412 by post()) when the precondition can't be safely
-        evaluated
+    :raises ResourceValidationError: code="invalid" (HTTP 400) when the
+        precondition is malformed, and code="multiple-matches" (mapped to
+        HTTP 412 by post()) when more than one object matches
     """
     resource_type = resource.resourceType
     expression = ["{}.request.ifNoneExist".format(resource_type)]
@@ -99,17 +99,17 @@ def find_by_if_none_exist(resource, raw):
         raise ResourceValidationError(
             "Missing identifier system in {}.request.ifNoneExist: {!r}"
             .format(resource_type, raw),
-            expression=expression, code="multiple-matches")
+            expression=expression, code="invalid")
     if system not in (internal_system, external_system):
         raise ResourceValidationError(
             "Unsupported identifier system in {}.request.ifNoneExist: {}"
             .format(resource_type, system),
-            expression=expression, code="multiple-matches")
+            expression=expression, code="invalid")
     if not value:
         raise ResourceValidationError(
             "Missing identifier value in {}.request.ifNoneExist: {!r}"
             .format(resource_type, raw),
-            expression=expression, code="multiple-matches")
+            expression=expression, code="invalid")
 
     portal_type = fapi.get_portal_type(resource)
     index = "id" if system == internal_system else external_index
