@@ -1,27 +1,28 @@
 FHIR Bundle POST (ifNoneExist conditional create -- Patient)
 --------------------------------------------------------------
 
-Implements the conditional-create business rules from issue #60: a
-``Patient``, ``Practitioner`` or ``Organization`` bundle entry may carry
-``request.ifNoneExist`` of the form ``identifier=<system>|<value>``, keyed on
-either that type's internal (``...-id``) or external
-(``...-mrn``/``...-external-id``) default ``NamingSystem``
-(``senaite.fhir.conditions.MATCH_TABLE``). Zero matches creates as normal.
+Implements the conditional-create business rules: a
+`Patient`, `Practitioner` or `Organization` bundle entry may carry
+`request.ifNoneExist` of the form `identifier=<system>|<value>`, keyed on
+either that type's internal (`...-id`) or external
+(`...-mrn`/`...-external-id`) default `NamingSystem`
+(`senaite.fhir.conditions.MATCH_TABLE`). Zero matches creates as normal.
 Exactly one match is treated as already-satisfied: the submitted body is
-discarded entirely and the existing object is left untouched. More than one
+validated but not applied, and the existing object is only linked to the
+entry's placeholder id, its fields left untouched. More than one
 match cannot be safely evaluated and rejects the whole transaction with
-``412 Precondition Failed``. A malformed ``ifNoneExist`` (missing or
-unrecognized identifier system, or no value) rejects it with ``400 Bad
-Request``. Both use the same all-or-none rollback as every other bundle
+`412 Precondition Failed`. A malformed `ifNoneExist` (missing or
+unrecognized identifier system, or no value) rejects it with `400 Bad
+Request`. Both use the same all-or-none rollback as every other bundle
 validation failure.
 
-This file covers the mechanics end-to-end for ``Patient``.
-``bundle_post_12`` spot-checks ``Organization``/``Practitioner`` and a couple
-of cross-cutting edge cases.
+This file covers the mechanics end-to-end for `Patient`.
+`bundle_post_if_none_exist_org_practitioner` spot-checks
+`Organization`/`Practitioner` and a couple of cross-cutting edge cases.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_11
+    bin/test test_doctests -t bundle_post_if_none_exist
 
 
 Test Setup
@@ -75,8 +76,8 @@ Helpers:
 Each scenario below that creates or links a Patient uses its own Patient
 placeholder id, so a later scenario's link doesn't silently steal the FHIR
 id a previous scenario already linked to a different Patient (the same
-gotcha documented in ``bundle_post_06`` for ServiceRequest ids). The
-ServiceRequest's ``subject`` reference is a literal ``Patient/{id}`` pointing
+gotcha documented in `bundle_post_order_detail` for ServiceRequest ids). The
+ServiceRequest's `subject` reference is a literal `Patient/{id}` pointing
 at the fixture's original placeholder, so it must be repointed too:
 
     >>> def set_patient_id(bundle, new_id):
@@ -121,7 +122,7 @@ of the bundle to succeed regardless of how the Patient entry resolves:
 Rejection: ifNoneExist with no identifier system
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A malformed ``ifNoneExist`` (no ``system|value`` pair at all) cannot be
+A malformed `ifNoneExist` (no `system|value` pair at all) cannot be
 evaluated and is rejected with 400, not silently ignored:
 
     >>> bundle = load_bundle()
@@ -184,7 +185,7 @@ Rejection: ifNoneExist with no identifier value
 Success: zero matches creates the Patient as normal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``ifNoneExist`` keyed on the bundle's own MRN, which no Patient carries yet:
+`ifNoneExist` keyed on the bundle's own MRN, which no Patient carries yet:
 
     >>> bundle = load_bundle()
     >>> set_patient_id(bundle, "a1a1a1a1-a1a1-5a1a-9a1a-a1a1a1a1a1a1")
@@ -219,8 +220,8 @@ A Patient already exists, independently of anything the bundle carries:
     >>> transaction.commit()
     >>> before = patient_count()
 
-``ifNoneExist`` matches it by MRN. The bundle's own Patient body (still
-James Nguyen / MRN-20394857 from the fixture) is never even looked at:
+`ifNoneExist` matches it by MRN. The bundle's own Patient body (still
+James Nguyen / MRN-20394857 from the fixture) is validated but not applied:
 
     >>> bundle = load_bundle()
     >>> set_patient_id(bundle, "b2b2b2b2-b2b2-5b2b-9b2b-b2b2b2b2b2b2")
@@ -237,7 +238,7 @@ James Nguyen / MRN-20394857 from the fixture) is never even looked at:
 The body carries another MRN than the matched Patient. This may be on
 purpose, e.g. the MRN was corrected at the source and the consumer matches by
 the old one, or a mistake in the condition. SENAITE cannot tell, so it accepts
-the match and returns a warning in the Bundle's ``issues``:
+the match and returns a warning in the Bundle's `issues`:
 
     >>> issue = response["issues"]["issue"][0]
     >>> issue["severity"], issue["code"]
@@ -272,7 +273,7 @@ same as a real create/update would do:
     True
 
 That link is also what lets the rest of the same bundle resolve the
-ServiceRequest's ``subject`` reference to the matched Patient rather than
+ServiceRequest's `subject` reference to the matched Patient rather than
 failing to find one -- the Sample is created successfully:
 
     >>> portal._p_jar.sync()
@@ -323,7 +324,7 @@ Success: a match on the Patient's own MRN does not warn
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When the body carries the matched Patient's MRN, there is nothing to warn
-about and the Bundle has no ``issues``:
+about and the Bundle has no `issues`:
 
     >>> existing5 = api.create(portal.patients, "Patient",
     ...                        mrn=u"MRN-SAME",
@@ -352,9 +353,9 @@ Rejection: a match carrying invalid identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The resources are validated before their counterpart object is searched, so
-a conditional create is validated even when its ``ifNoneExist`` matches an
+a conditional create is validated even when its `ifNoneExist` matches an
 existing object -- a match does not skip the identifier rules. A Patient that
-matches by MRN, but also carries an internal (``usual``) identifier, which the
+matches by MRN, but also carries an internal (`usual`) identifier, which the
 consumer cannot send:
 
     >>> existing3 = api.create(portal.patients, "Patient",

@@ -1,15 +1,15 @@
 FHIR Bundle POST (logical ids are assigned by SENAITE)
 ------------------------------------------------------
 
-The logical id (`Resource.id`) of a resource is assigned by SENAITE and never
-supplied by the consumer. A POSTed entry is only identified by the placeholder
-of its `fullUrl` (e.g. `urn:uuid:<id>`), which the other entries of the same
-bundle refer to. An entry carrying `resource.id` rejects the whole bundle with
-422 Unprocessable Entity, before anything is processed.
+The logical id (`Resource.id`) of a bundle entry's resource is assigned by
+SENAITE and never supplied by the consumer. A POSTed entry is only identified
+by the placeholder of its `fullUrl` (e.g. `urn:uuid:<id>`), which the other
+entries of the same bundle refer to. An entry carrying `resource.id` rejects
+the whole bundle with 422 Unprocessable Entity, before anything is processed.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_13
+    bin/test test_doctests -t bundle_post_logical_id
 
 
 Test Setup

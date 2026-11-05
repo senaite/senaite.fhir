@@ -4,23 +4,23 @@ FHIR Bundle POST (Specimen SampleType validation and re-linking)
 Exercises three Specimen-specific behaviours introduced alongside the FHIR
 Specimen listing:
 
-1. **Rejection on missing SampleType**: when a ``Bundle`` contains a
-   ``Specimen`` whose ``type.coding.display`` does not match any
-   ``SampleType`` in SENAITE, the ServiceRequest conversion raises and the
-   whole bundle is rejected with a ``400 OperationOutcome``. As the POST is a
+1. **Rejection on missing SampleType**: when a `Bundle` contains a
+   `Specimen` whose `type.coding.display` does not match any
+   `SampleType` in SENAITE, the ServiceRequest conversion raises and the
+   whole bundle is rejected with a `400 OperationOutcome`. As the POST is a
    single all-or-nothing transaction, no content is persisted.
 
 2. **Specimen appears in listing**: after a successful bundle POST the stored
-   Specimen annotation is returned by ``GET /Specimen``.
+   Specimen annotation is returned by `GET /Specimen`.
 
 3. **SampleType re-linking on update**: re-posting the same bundle with a
    different Specimen type updates the underlying AnalysisRequest's
-   ``SampleType`` field even though the field is guarded by the
-   ``FieldEditSampleType`` write permission.
+   `SampleType` field even though the field is guarded by the
+   `FieldEditSampleType` write permission.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_07
+    bin/test test_doctests -t bundle_post_specimen
 
 
 Test Setup
@@ -46,8 +46,8 @@ Variables:
     >>> browser.raiseHttpErrors = False
     >>> setRoles(portal, TEST_USER_ID, ["LabManager", "Manager"])
 
-Load Bundle.01.json as the base bundle (it carries a ``Specimen`` with
-type display ``"Serum specimen"``):
+Load Bundle.01.json as the base bundle (it carries a `Specimen` with
+type display `"Serum specimen"`):
 
     >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
     >>> bundle = json.loads(raw)
@@ -59,7 +59,7 @@ Setup objects (without SampleType)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create the Client and analysis services so the bundle can be fully resolved –
-except the ``SampleType``, which is left out intentionally for the pre-flight
+except the `SampleType`, which is left out intentionally for the rejection
 test:
 
     >>> client = api.create(portal.clients, "Client",
@@ -84,8 +84,8 @@ test:
 Rejection – missing SampleType
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When the ``Specimen`` in the bundle cannot be matched to an existing
-``SampleType`` in SENAITE the ServiceRequest conversion raises and the whole
+When the `Specimen` in the bundle cannot be matched to an existing
+`SampleType` in SENAITE the ServiceRequest conversion raises and the whole
 bundle is rejected; the transaction is rolled back so no content is persisted:
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
@@ -113,8 +113,8 @@ No AnalysisRequest is created by the rejected bundle:
 Initial bundle POST – Specimen stored and appears in listing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Now create the ``SampleType`` (matched by the Specimen's SNOMED display) and
-a second ``SampleType`` that will be used in the SampleType re-linking test:
+Now create the `SampleType` (matched by the Specimen's SNOMED display) and
+a second `SampleType` that will be used in the SampleType re-linking test:
 
     >>> serum = api.create(setup.sampletypes, "SampleType",
     ...                    title="Serum specimen", Prefix="SER")
@@ -189,7 +189,7 @@ The FHIR id of the stored Specimen is derived from the entry's fullUrl:
     >>> sample.getSampleType() == serum
     True
 
-The FHIR-backed Specimen is returned by ``GET /Specimen``:
+The FHIR-backed Specimen is returned by `GET /Specimen`:
 
     >>> browser.open("{}/Specimen".format(fhir_url))
     >>> listing = json.loads(browser.contents)
@@ -215,10 +215,10 @@ Fetching the Specimen by its FHIR id also works:
 SampleType re-linking on bundle update
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Change the Specimen's type display to ``"EDTA Blood"`` in the bundle and
+Change the Specimen's type display to `"EDTA Blood"` in the bundle and
 re-post.  The existing AnalysisRequest is found and updated; its SampleType
 must be switched even though the field is guarded by the
-``FieldEditSampleType`` write permission::
+`FieldEditSampleType` write permission::
 
     >>> specimen_entry = [e for e in bundle["entry"]
     ...                   if e["resource"]["resourceType"] == "Specimen"][0]
@@ -256,12 +256,12 @@ No duplicate AnalysisRequest is created:
     >>> len(samples)
     1
 
-The AnalysisRequest's SampleType is now ``EDTA Blood``:
+The AnalysisRequest's SampleType is now `EDTA Blood`:
 
     >>> samples[0].getSampleType() == edta
     True
 
-The updated Specimen (with the new type) is returned by ``GET /Specimen``:
+The updated Specimen (with the new type) is returned by `GET /Specimen`:
 
     >>> browser.open("{}/Specimen".format(fhir_url))
     >>> listing2 = json.loads(browser.contents)

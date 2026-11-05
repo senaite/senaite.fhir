@@ -17,7 +17,7 @@ refer to each other by the `urn:uuid` placeholder of their `fullUrl`.
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_14
+    bin/test test_doctests -t bundle_post_response_order
 
 
 Test Setup

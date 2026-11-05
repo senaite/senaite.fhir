@@ -1,25 +1,27 @@
-FHIR Bundle POST (identifier validation)
-----------------------------------------
+FHIR Bundle POST (ServiceRequest/Specimen identifier validation)
+----------------------------------------------------------------
 
-Tests the identifier validation layer in
-`ResourceToAnalysisRequest.validate_identifiers()`:
+Tests the identifiers pattern for the `ServiceRequest` and its `Specimen`
+(`ResourceToAnalysisRequest.validate_identifiers()`). Each resource is
+validated before its counterpart is searched or created, and a violation rolls
+back the whole bundle:
 
 1. **Rejection of usual identifier in ServiceRequest**: when a `ServiceRequest`
-   carries an identifier with `use="usual"`, the conversion raises with
+   carries an identifier with `use="usual"`, the bundle is rejected with
    `"Cannot specify any identifier in ServiceRequest"`.
 
 2. **Rejection of usual identifier in Specimen**: when a `Specimen`
-   carries an identifier with `use="usual"`, the conversion raises with
+   carries an identifier with `use="usual"`, the bundle is rejected with
    `"Cannot specify usual identifier externally in incoming Specimen"`.
 
 3. **Rejection of external identifier in ServiceRequest**: when a
    `ServiceRequest` carries an identifier with `use="secondary"` and
-   `system="client-sample-id"`, the conversion raises with
+   `system="client-sample-id"`, the bundle is rejected with
    `"Cannot specify any identifier in ServiceRequest"`.
 
 4. **Allow external identifier in Specimen**: when a `Specimen` carries an
    identifier with `use="secondary"` and `system="client-sample-id"`, the
-   conversion succeeds and the identifier is used as the `ClientSampleID`.
+   bundle is accepted and the identifier is used as the `ClientSampleID`.
 
 5. **Rejection of any identifier in ServiceRequest, regardless of `use`**:
    `ServiceRequest` must not carry an identifier at all, so one with a `use`
@@ -28,7 +30,7 @@ Tests the identifier validation layer in
 
 Running this test from the buildout directory:
 
-    bin/test test_doctests -t bundle_post_08
+    bin/test test_doctests -t bundle_post_order_identifiers
 
 
 Test Setup
@@ -193,10 +195,9 @@ No AnalysisRequest is created:
 Rejection: ServiceRequest with an identifier under any other `use`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A `ServiceRequest` must not carry an identifier at all. An identifier with
-`use="official"` (neither `usual` nor `secondary`) is still rejected, just
-with a more generic message, since neither of the two specific checks above
-recognizes it:
+A `ServiceRequest` must not carry an identifier at all, so one with
+`use="official"` (neither `usual` nor `secondary`) is rejected with the same
+message:
 
     >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
     >>> bundle = json.loads(raw)
@@ -360,10 +361,10 @@ The AnalysisRequest is created with the correct ClientSampleID:
     'EXT-CARDIAC-003'
 
 The transaction-response records the newly created Specimen by its FHIR id.
-When read, it carries SENAITE's newly assigned sample ID as the ``usual``
+When read, it carries SENAITE's newly assigned sample ID as the `usual`
 identifier, ahead of the external client-sample ID. The consumer cannot supply
 the former, so it is resolved from the live sample rather than from the stored
-snapshot (see ``get_server_owned_elements``):
+snapshot (see `get_server_owned_elements`):
 
     >>> response_specimen = [entry for entry in response["entry"]
     ...                      if entry["fullUrl"].startswith("Specimen/")][0]
@@ -405,7 +406,8 @@ When a `Bundle` carries no identifiers on either `ServiceRequest` or
     >>> response["type"]
     u'transaction-response'
 
-The AnalysisRequest is created without a ClientSampleID:
+The same ServiceRequest resolves to the AnalysisRequest created above, which
+is updated and no longer has a ClientSampleID:
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
