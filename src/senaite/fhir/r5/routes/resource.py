@@ -112,9 +112,9 @@ def post(context, request, resource_type=None):
         except ResourceValidationError as e:
             return get_validation_outcome(request, e)
 
-    entries = []
+    # (position of the request entry, response entry) pairs
+    responses = []
     issues = []
-    entries_by_request_index = {}
     for resource in resources:
 
         # Skip if creation or update of this resource is not supported
@@ -188,11 +188,7 @@ def post(context, request, resource_type=None):
                 "lastModified": modified,
             }
         }
-        request_index = resource.get("entry_index")
-        if request_index is None:
-            entries.append(entry)
-        else:
-            entries_by_request_index[request_index] = entry
+        responses.append((get_request_index(resource), entry))
 
         # If the resource is a ServiceRequest, process any Specimen resources
         if resource.resourceType == "ServiceRequest" and obj:
@@ -200,9 +196,7 @@ def post(context, request, resource_type=None):
                 resource, obj, status, modified
             )
             for specimen, specimen_entry in specimen_entries:
-                entries_by_request_index[
-                    specimen["entry_index"]
-                ] = specimen_entry
+                responses.append((get_request_index(specimen), specimen_entry))
 
         # An Observation carries a result for an existing Analysis; once
         # applied (see ResourceToAnalysisResult), submit it
@@ -217,10 +211,10 @@ def post(context, request, resource_type=None):
                 obs["text"] = resource.text
             return obs
 
-    # Restore request order after dependency processing
-    entries.extend(
-        entry for _, entry in sorted(entries_by_request_index.items())
-    )
+    # the resources are processed in dependency order: restore the order of
+    # the request, as required by FHIR. Entries without a position go first
+    responses.sort(key=lambda response: (response[0] is not None, response[0]))
+    entries = [response_entry for _, response_entry in responses]
 
     # create the BundleResponse
     resp = {
@@ -238,6 +232,18 @@ def post(context, request, resource_type=None):
             "issue": issues,
         }
     return BundleResponseResource(resp)
+
+
+def get_request_index(resource):
+    """Returns the position of the entry of the given resource in the request
+    bundle, or None if the resource is not part of a bundle
+
+    :param resource: the FHIR resource of a bundle entry
+    """
+    bundle = resource.get("_bundle")
+    if not bundle:
+        return None
+    return bundle.get_entry_index(resource)
 
 
 def get_validation_outcome(request, error):

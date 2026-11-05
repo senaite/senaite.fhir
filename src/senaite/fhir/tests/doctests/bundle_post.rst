@@ -124,6 +124,12 @@ though the server internally processes them in dependency order:
     >>> response_types == request_types
     True
 
+The position of the request entries is not stored in the resources, so it
+never leaks into what SENAITE returns, e.g. the Specimen of the response:
+
+    >>> [e for e in entries if "entry_index" in e.get("resource", {})]
+    []
+
 The pre-existing Client (Organization) is updated, the rest are created:
 
     >>> status = dict((e["fullUrl"].split("/")[0], e["response"]["status"])
