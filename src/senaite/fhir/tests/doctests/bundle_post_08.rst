@@ -6,7 +6,7 @@ Tests the identifier validation layer in
 
 1. **Rejection of usual identifier in ServiceRequest**: when a `ServiceRequest`
    carries an identifier with `use="usual"`, the conversion raises with
-   `"Cannot specify usual identifier externally in incoming ServiceRequest"`.
+   `"Cannot specify any identifier in ServiceRequest"`.
 
 2. **Rejection of usual identifier in Specimen**: when a `Specimen`
    carries an identifier with `use="usual"`, the conversion raises with
@@ -15,11 +15,16 @@ Tests the identifier validation layer in
 3. **Rejection of external identifier in ServiceRequest**: when a
    `ServiceRequest` carries an identifier with `use="secondary"` and
    `system="client-sample-id"`, the conversion raises with
-   `"Cannot specify external identifier in ServiceRequest"`.
+   `"Cannot specify any identifier in ServiceRequest"`.
 
 4. **Allow external identifier in Specimen**: when a `Specimen` carries an
    identifier with `use="secondary"` and `system="client-sample-id"`, the
    conversion succeeds and the identifier is used as the `ClientSampleID`.
+
+5. **Rejection of any identifier in ServiceRequest, regardless of `use`**:
+   `ServiceRequest` must not carry an identifier at all, so one with a `use`
+   other than `usual`/`secondary` (e.g. `official`), or no `use` at all, is
+   rejected too.
 
 Running this test from the buildout directory:
 
@@ -85,7 +90,7 @@ Rejection: ServiceRequest with a usual identifier
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When a `ServiceRequest` carries an identifier with `use="usual"`, the
-conversion must reject it as internal IDs cannot be specified externally:
+conversion must reject it, as a ServiceRequest cannot carry any identifier:
 
     >>> sr_entry = [e for e in bundle["entry"]
     ...             if e["resource"]["resourceType"] == "ServiceRequest"][0]
@@ -105,7 +110,7 @@ conversion must reject it as internal IDs cannot be specified externally:
     u'OperationOutcome'
     >>> issue = outcome["issue"][0]
     >>> text = issue["details"]["text"]
-    >>> "Cannot specify usual identifier externally" in text
+    >>> "Cannot specify any identifier in ServiceRequest" in text
     True
 
 No AnalysisRequest is created:
@@ -175,7 +180,42 @@ should not carry external identifiers (only Specimen should):
     >>> outcome = json.loads(browser.contents)
     >>> issue = outcome["issue"][0]
     >>> text = issue["details"]["text"]
-    >>> "Cannot specify external identifier in ServiceRequest" in text
+    >>> "Cannot specify any identifier in ServiceRequest" in text
+    True
+
+No AnalysisRequest is created:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    0
+
+
+Rejection: ServiceRequest with an identifier under any other `use`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A `ServiceRequest` must not carry an identifier at all. An identifier with
+`use="official"` (neither `usual` nor `secondary`) is still rejected, just
+with a more generic message, since neither of the two specific checks above
+recognizes it:
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    >>> bundle = json.loads(raw)
+    >>> sr_entry = [e for e in bundle["entry"]
+    ...             if e["resource"]["resourceType"] == "ServiceRequest"][0]
+    >>> sr_entry["resource"]["identifier"] = [
+    ...     {
+    ...         "use": "official",
+    ...         "value": "SOME-OTHER-ID"
+    ...     }
+    ... ]
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> outcome = json.loads(browser.contents)
+    >>> issue = outcome["issue"][0]
+    >>> text = issue["details"]["text"]
+    >>> "Cannot specify any identifier in ServiceRequest" in text
     True
 
 No AnalysisRequest is created:
@@ -213,6 +253,66 @@ The `Specimen` may carry an external identifier, but only under the
     [u'Specimen.identifier']
     >>> text = issue["details"]["text"]
     >>> "Unsupported identifier system in Specimen" in text
+    True
+
+No AnalysisRequest is created:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    0
+
+
+Rejection: Specimen with an external identifier carrying no system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    >>> bundle = json.loads(raw)
+    >>> specimen_entry = [e for e in bundle["entry"]
+    ...                   if e["resource"]["resourceType"] == "Specimen"][0]
+    >>> specimen_entry["resource"]["identifier"] = [
+    ...     {
+    ...         "use": "secondary",
+    ...         "value": "EXT-NO-SYSTEM"
+    ...     }
+    ... ]
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> text = json.loads(browser.contents)["issue"][0]["details"]["text"]
+    >>> "Missing identifier system in Specimen" in text
+    True
+
+No AnalysisRequest is created:
+
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    0
+
+
+Rejection: Specimen with an internal identifier under another use
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The `Specimen` can only carry an external identifier, so its internal one is
+rejected under any `use`, not only `usual`:
+
+    >>> raw = resource_string("senaite.fhir.tests", "data/Bundle.01.json")
+    >>> bundle = json.loads(raw)
+    >>> specimen_entry = [e for e in bundle["entry"]
+    ...                   if e["resource"]["resourceType"] == "Specimen"][0]
+    >>> specimen_entry["resource"]["identifier"] = [
+    ...     {
+    ...         "use": "official",
+    ...         "system": "https://fhir.senaite.org/NamingSystem/sample-id",
+    ...         "value": "SER-0099"
+    ...     }
+    ... ]
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> text = json.loads(browser.contents)["issue"][0]["details"]["text"]
+    >>> "Unsupported identifier use in Specimen: official" in text
     True
 
 No AnalysisRequest is created:

@@ -22,8 +22,7 @@ class ContactFinder(object):
     def find(self):
         """Looks for the resource's counterpart Contact object
         """
-        # search by the external id (use=secondary). get_external_id returns
-        # the Identifier object, so we look up by its value
+        # search by the external identifier of the Practitioner
         identifier = self.resource.get_external_id()
         if not identifier or not identifier.value:
             return None

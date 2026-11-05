@@ -24,6 +24,8 @@ class ResourceToContact(ResourceToPerson):
         return fapi.get_object(org, default=None)
 
     def to_content_dict(self):
+        self.validate()
+
         # contact should belong to a client (Organization)
         parent = self.get_parent()
         if not parent:

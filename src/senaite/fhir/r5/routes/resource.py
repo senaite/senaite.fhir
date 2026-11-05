@@ -8,6 +8,7 @@ from bika.lims.workflow import doActionFor as do_action_for
 from senaite.core.api import dtime
 from senaite.core.api import workflow as wapi
 from senaite.fhir import api as fapi
+from senaite.fhir import conditions
 from senaite.fhir import logger
 from senaite.fhir.api import find_object_for
 from senaite.fhir.config import DEFAULT_BUNDLE_PAGE_COUNT
@@ -21,8 +22,7 @@ from senaite.fhir.r5 import add_route
 from senaite.fhir.resource.bundleresponse import BundleResponseResource
 from senaite.fhir.resource.operationoutcome import OperationOutcome
 from senaite.fhir.resource.resultsbundle import ResultsBundleResource
-from senaite.fhir.exceptions import ObservationValidationError
-from senaite.fhir.exceptions import ServiceRequestValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.resource.servicerequestrevoked import ServiceRequestRevocationError  # noqa: E501
 from senaite.fhir.resource.servicerequestrevoked import ServiceRequestRevocationResource  # noqa: E501
 from senaite.jsonapi import api as japi
@@ -103,7 +103,17 @@ def post(context, request, resource_type=None):
     # get the FHIR resources from the request
     resources = get_fhir_resources()
 
+    # reject the entries that carry a logical id, and the conditional creates
+    # of resource types that do not support them, before anything is processed
+    for resource in resources:
+        try:
+            fapi.validate_no_logical_id(resource)
+            conditions.validate_if_none_exist(resource)
+        except ResourceValidationError as e:
+            return get_validation_outcome(request, e)
+
     entries = []
+    issues = []
     entries_by_request_index = {}
     for resource in resources:
 
@@ -113,28 +123,38 @@ def post(context, request, resource_type=None):
 
         # create or update the counterpart object
         try:
-            obj = find_object_for(resource)
-            if not obj:
-                obj = fapi.create(resource)
-                status = "201 Created"
-            else:
-                obj = fapi.update(obj, resource)
-                status = "200 OK"
-        except (ServiceRequestValidationError, ObservationValidationError) as e:  # noqa: E501
-            transaction.abort()
-            code = getattr(e, "code", "business-rule")
-            status_code = 400
-            if code == "conflict":
-                status_code = 409
+            # validate before searching the counterpart object, so the rules
+            # apply whatever happens next: creation, update or a match,
+            # including a conditional create that matches an existing object
+            fapi.validate(resource)
 
-            request.response.setStatus(status_code)
-            issue = {
-                "severity": "error",
-                "code": code,
-                "details": {"text": str(e)},
-                "expression": e.expression,
-            }
-            return OperationOutcome({"issue": [issue]})
+            if_none_exist = conditions.get_if_none_exist(resource)
+            if if_none_exist:
+                # Conditional create: evaluate the ifNoneExist precondition
+                # instead of the generic find-or-create flow below. A match
+                # discards the submitted body entirely (no fapi.update) --
+                # only the FHIR id used by this bundle is linked to it.
+                obj = conditions.find_by_if_none_exist(resource, if_none_exist)  # noqa: E501
+                if obj:
+                    fapi.link_fhir_resource(obj, resource)
+                    status = "200 OK"
+                    # warn if the discarded body names another identifier
+                    issue = conditions.get_if_none_exist_warning(resource, obj)
+                    if issue:
+                        issues.append(issue)
+                else:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
+            else:
+                obj = find_object_for(resource)
+                if not obj:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
+                else:
+                    obj = fapi.update(obj, resource)
+                    status = "200 OK"
+        except ResourceValidationError as e:
+            return get_validation_outcome(request, e)
         except Exception:
             # Unexpected failure: roll back the whole bundle (all-or-none),
             # log the details server-side and return a generic error. Never
@@ -212,7 +232,44 @@ def post(context, request, resource_type=None):
         "type": "transaction-response",
         "entry": entries,
     }
+    if issues:
+        resp["issues"] = {
+            "resourceType": "OperationOutcome",
+            "issue": issues,
+        }
     return BundleResponseResource(resp)
+
+
+def get_validation_outcome(request, error):
+    """Rolls back the transaction and returns the OperationOutcome for the
+    given ResourceValidationError, with the HTTP status of the error, or the
+    one that matches its issue code otherwise
+
+    :param request: the current request
+    :param error: the ResourceValidationError raised
+    """
+    transaction.abort()
+    code = getattr(error, "code", "business-rule")
+    status_code = 400
+    if code == "conflict":
+        status_code = 409
+    elif code == "multiple-matches":
+        status_code = 412
+    status_code = getattr(error, "status", None) or status_code
+
+    details = {"text": str(error)}
+    coding = getattr(error, "coding", None)
+    if coding:
+        details["coding"] = coding
+
+    request.response.setStatus(status_code)
+    issue = {
+        "severity": "error",
+        "code": code,
+        "details": details,
+        "expression": error.expression,
+    }
+    return OperationOutcome({"issue": [issue]})
 
 
 def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):

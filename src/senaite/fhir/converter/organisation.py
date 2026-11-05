@@ -5,6 +5,7 @@ from senaite.core.schema.addressfield import BILLING_ADDRESS
 from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.converter import group_by
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IOrganizationResource
@@ -14,12 +15,11 @@ from zope.interface import implementer
 
 @adapter(IOrganizationResource)
 @implementer(IFHIRToContent)
-class ResourceToOrganisation(object):
-
-    def __init__(self, resource):
-        self.resource = resource
+class ResourceToOrganisation(ResourceToContent):
 
     def to_content_dict(self):
+        self.validate()
+
         name = self.get_name()
         if not name:
             raise ValueError("%r: No Name" % self.resource)

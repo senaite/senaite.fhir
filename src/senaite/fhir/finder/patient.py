@@ -20,7 +20,7 @@ class PatientFinder(object):
     def find(self):
         """Looks for the resource's counterpart Patient object
         """
-        # search by MRN - Medical Record Number (use=secondary)
+        # search by MRN, the external identifier of the Patient
         identifier = self.resource.get_external_id()
         if identifier and identifier.value:
             return papi.get_patient_by_mrn(identifier.value,

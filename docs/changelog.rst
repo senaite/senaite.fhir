@@ -5,6 +5,9 @@ Changelog
 ------------------
 
 - #49 Preserve request order in transaction response bundles
+- #51 Reject client-supplied bundle resource ID
+- #47 Add support for ifNoneExist conditional create for Bundle
+- #46 Ensure consistent Bundle identifier handling
 - #44 Let bundle entries know their bundle, and keep it out of snapshots
 - #40 Add external ID behavior for Contacts
 - #43 Test the internal sample ID of Specimens created from bundles

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from bika.lims import api
-from senaite.fhir.converter import get_by_key
 from senaite.fhir.converter.organisation import ResourceToOrganisation
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IOrganizationResource
@@ -33,6 +32,5 @@ class ResourceToClient(ResourceToOrganisation):
         return "%s/clients" % api.get_path(portal)
 
     def get_client_id(self):
-        identifiers = self.resource.identifier
-        secondary = get_by_key(identifiers, key="use", value="secondary")
-        return secondary.value if secondary else None
+        identifier = self.resource.get_external_id()
+        return identifier.value if identifier else None
