@@ -1050,6 +1050,20 @@ def get_server_owned_elements(obj, resource_type):
     return dict([(key, live[key]) for key in keys if live.get(key)])
 
 
+def merge_extensions(extensions, owned):
+    """Returns the given extensions with the ones owned by SENAITE in place
+    of those with the same url, and the rest added at the end
+
+    :param extensions: list of extension dicts, e.g. those of a snapshot
+    :param owned: list of extension dicts owned by SENAITE
+    :returns: list of extension dicts
+    """
+    urls = [extension.get("url") for extension in owned]
+    kept = [extension for extension in extensions or []
+            if extension.get("url") not in urls]
+    return kept + list(owned)
+
+
 def get_fhir_resource(obj, resource_type=None, default=_marker):
     """Returns the FHIR resource of the given type linked to the given object.
 
@@ -1090,7 +1104,14 @@ def get_fhir_resource(obj, resource_type=None, default=_marker):
         # complete the snapshot with the elements owned by SENAITE, e.g. the
         # internal Sample ID of a Specimen, that a consumer cannot supply
         data = dict(stored)
-        data.update(get_server_owned_elements(obj, resource_type))
+        owned = get_server_owned_elements(obj, resource_type)
+        # SENAITE only owns the extensions it synthesizes, not the whole list:
+        # keep the ones the consumer sent
+        extensions = owned.pop("extension", None)
+        data.update(owned)
+        if extensions:
+            data["extension"] = merge_extensions(
+                data.get("extension"), extensions)
         return to_fhir_resource(data, default=default)
 
     # rely on the IContentToFHIR adapter for the requested resource type

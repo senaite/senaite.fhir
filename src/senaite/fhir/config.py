@@ -2,6 +2,9 @@
 
 FHIR_BASE_URL = "https://fhir.senaite.org"
 FHIR_STORAGE_KEY = "senaite.fhir.storage"
+SPECIMEN_BARCODE_EXTENSION_URL = (
+    "https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode"
+)
 
 # Ids of the NamingSystems of the resources' identifiers: the internal one
 # (`use="usual"`), assigned by SENAITE, and the external one
@@ -138,9 +141,11 @@ SPECIMEN_STATUSES = (
 
 # Elements of a secondary FHIR resource that are owned by SENAITE. The stored
 # snapshot keeps what the consumer submitted, but these elements are always
-# taken from the live content when the resource is read
+# taken from the live content when the resource is read. For `extension`,
+# only the extensions SENAITE synthesizes are owned (matched by url): the
+# others in the snapshot are kept
 SERVER_OWNED_ELEMENTS = (
-    ("Specimen", ("identifier", "status")),
+    ("Specimen", ("identifier", "status", "extension")),
 )
 
 ANALYSIS_REPORTABLE_STATUSES = (
