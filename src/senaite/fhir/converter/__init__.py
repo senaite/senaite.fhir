@@ -10,7 +10,9 @@ from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir.config import FHIR_BASE_URL
 from senaite.fhir.exceptions import ResourceValidationError
+from senaite.fhir.interfaces import IFHIRToContent
 from zope.deprecation import deprecate
+from zope.interface import implementer
 
 
 def to_naming_system_url(system_id):
@@ -46,70 +48,106 @@ def to_fhir_identifier(system_id, value, use=None):
     return data
 
 
-def reject_internal_identifier(resource, resource_name):
-    """Raise if the incoming resource carries an internal (usual)
-    identifier - these are assigned by SENAITE only after creation and
-    may never be supplied by the API consumer
+@implementer(IFHIRToContent)
+class ResourceToContent(object):
+    """Base converter of an incoming FHIR resource into a content dict
+
+    Holds the validation rules shared by the converters of the resources a
+    consumer can create or update. The identifiers follow the SENAITE
+    pattern: the internal one (`use="usual"`) is assigned by SENAITE after
+    the object is created, so the consumer can only send the external one
+    (`use="secondary"`), with the system the resource supports.
+    https://fhir.senaite.org/identifiers.html
     """
-    object_id = resource.get_object_id()
-    if object_id:
-        msg = (
-            "Cannot specify usual identifier externally in incoming "
-            "{}:{}"
-        ).format(resource_name, object_id.value)
-        raise ResourceValidationError(
-            msg,
-            expression=["{}.identifier".format(resource_name)],
-            code="invalid",
-        )
 
+    # NamingSystem id of the external identifier the resource supports (e.g.
+    # `patient-mrn`). None if the resource cannot carry any identifier
+    external_id_system = None
 
-def validate_external_identifier(resource, resource_name, valid_system=None):
-    """Raise if the incoming resource's external (secondary) identifier,
-    if any, has no system or a system other than `valid_system`.
+    def __init__(self, resource):
+        self.resource = resource
 
-    Pass `valid_system=None` when the resource must not carry an external
-    identifier at all (e.g. ServiceRequest)
-    """
-    external_id = resource.get_external_id()
-    if external_id:
-        if valid_system is None:
+    def to_content_dict(self):
+        raise NotImplementedError("Must be implemented by subclass")
+
+    def validate(self):
+        """Raises a ResourceValidationError if the resource violates any of
+        the validation rules
+        """
+        self.validate_identifiers()
+
+    def validate_identifiers(self):
+        """Raises a ResourceValidationError if the identifiers of the
+        resource do not follow the identifiers pattern. A resource that
+        supports no external identifier cannot carry any identifier at all,
+        whatever its `use`
+        """
+        if not self.external_id_system:
+            self.validate_no_identifier()
+            return
+
+        self.validate_internal_identifier()
+        self.validate_external_identifier(self.external_id_system)
+
+    def validate_no_identifier(self, resource=None):
+        """Raises a ResourceValidationError if the resource carries any
+        identifier at all, whatever its `use`. For resources that support no
+        identifier, such as ServiceRequest
+
+        :param resource: the resource to validate. Defaults to the one this
+            converter handles
+        """
+        resource = resource or self.resource
+        if resource.identifier:
+            msg = "Cannot specify any identifier in {}".format(
+                resource.resourceType)
+            raise self.get_identifier_error(resource, msg)
+
+    def validate_internal_identifier(self, resource=None):
+        """Raises a ResourceValidationError if the resource carries an
+        internal (usual) identifier. These are assigned by SENAITE only
+        after creation and can never be supplied by the API consumer
+
+        :param resource: the resource to validate. Defaults to the one this
+            converter handles
+        """
+        resource = resource or self.resource
+        object_id = resource.get_object_id()
+        if object_id:
             msg = (
-                "Cannot specify external identifier in "
+                "Cannot specify usual identifier externally in incoming "
                 "{}:{}"
-            ).format(resource_name, external_id.value)
-            raise ResourceValidationError(
-                msg,
-                expression=["{}.identifier".format(resource_name)],
-                code="invalid",
-            )
-        if external_id.system != valid_system:
+            ).format(resource.resourceType, object_id.value)
+            raise self.get_identifier_error(resource, msg)
+
+    def validate_external_identifier(self, system_id, resource=None):
+        """Raises a ResourceValidationError if the external (secondary)
+        identifier of the resource, if any, has no system or a system other
+        than the NamingSystem with the given id
+
+        :param system_id: id of the NamingSystem the external identifier must
+            have (e.g. `patient-mrn`)
+        :param resource: the resource to validate. Defaults to the one this
+            converter handles
+        """
+        resource = resource or self.resource
+        external_id = resource.get_external_id()
+        if not external_id:
+            return
+
+        if external_id.system != to_naming_system_url(system_id):
             msg = (
                 "Unsupported identifier system in {}: {}"
-            ).format(resource_name, external_id.system)
-            raise ResourceValidationError(
-                msg,
-                expression=["{}.identifier".format(resource_name)],
-                code="invalid",
-            )
+            ).format(resource.resourceType, external_id.system)
+            raise self.get_identifier_error(resource, msg)
 
-
-def reject_any_identifier(resource, resource_name):
-    """Raise if the incoming resource carries any identifier at all,
-    regardless of its `use`.
-
-    `reject_internal_identifier`/`validate_external_identifier` only
-    recognize `use="usual"`/`use="secondary"`; this is the backstop for a
-    resource that must not carry an identifier under any `use` (e.g. an
-    identifier with `use="official"`, or none at all), such as
-    ServiceRequest.
-    """
-    identifiers = getattr(resource, "identifier", None)
-    if identifiers:
-        msg = "Cannot specify any identifier in {}".format(resource_name)
-        raise ResourceValidationError(
-            msg,
-            expression=["{}.identifier".format(resource_name)],
+    def get_identifier_error(self, resource, message):
+        """Returns the ResourceValidationError for an invalid identifier of
+        the given resource
+        """
+        return ResourceValidationError(
+            message,
+            expression=["{}.identifier".format(resource.resourceType)],
             code="invalid",
         )
 

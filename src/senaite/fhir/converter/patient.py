@@ -7,13 +7,11 @@ from senaite.core.schema.addressfield import PHYSICAL_ADDRESS
 from senaite.core.schema.addressfield import POSTAL_ADDRESS
 from senaite.fhir import api as fapi
 from senaite.fhir.converter import group_by
-from senaite.fhir.converter import reject_internal_identifier
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_content_address
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
 from senaite.fhir.converter import to_fhir_profile_url
-from senaite.fhir.converter import to_naming_system_url
-from senaite.fhir.converter import validate_external_identifier
 from senaite.fhir.interfaces import IContentToFHIR
 from senaite.fhir.interfaces import IFHIRToContent
 from senaite.fhir.interfaces import IPatientResource
@@ -233,15 +231,12 @@ class PatientToResource(object):
 
 @adapter(IPatientResource)
 @implementer(IFHIRToContent)
-class ResourceToPatient(object):
+class ResourceToPatient(ResourceToContent):
 
-    def __init__(self, resource):
-        self.resource = resource
+    external_id_system = "patient-mrn"
 
     def to_content_dict(self):
-        reject_internal_identifier(self.resource, "Patient")
-        validate_external_identifier(
-            self.resource, "Patient", to_naming_system_url("patient-mrn"))
+        self.validate()
 
         # Medical Record Number
         mrn = self.get_mrn()

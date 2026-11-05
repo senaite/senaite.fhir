@@ -6,7 +6,7 @@ Tests the identifier validation layer in
 
 1. **Rejection of usual identifier in ServiceRequest**: when a `ServiceRequest`
    carries an identifier with `use="usual"`, the conversion raises with
-   `"Cannot specify usual identifier externally in incoming ServiceRequest"`.
+   `"Cannot specify any identifier in ServiceRequest"`.
 
 2. **Rejection of usual identifier in Specimen**: when a `Specimen`
    carries an identifier with `use="usual"`, the conversion raises with
@@ -15,7 +15,7 @@ Tests the identifier validation layer in
 3. **Rejection of external identifier in ServiceRequest**: when a
    `ServiceRequest` carries an identifier with `use="secondary"` and
    `system="client-sample-id"`, the conversion raises with
-   `"Cannot specify external identifier in ServiceRequest"`.
+   `"Cannot specify any identifier in ServiceRequest"`.
 
 4. **Allow external identifier in Specimen**: when a `Specimen` carries an
    identifier with `use="secondary"` and `system="client-sample-id"`, the
@@ -90,7 +90,7 @@ Rejection: ServiceRequest with a usual identifier
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When a `ServiceRequest` carries an identifier with `use="usual"`, the
-conversion must reject it as internal IDs cannot be specified externally:
+conversion must reject it, as a ServiceRequest cannot carry any identifier:
 
     >>> sr_entry = [e for e in bundle["entry"]
     ...             if e["resource"]["resourceType"] == "ServiceRequest"][0]
@@ -110,7 +110,7 @@ conversion must reject it as internal IDs cannot be specified externally:
     u'OperationOutcome'
     >>> issue = outcome["issue"][0]
     >>> text = issue["details"]["text"]
-    >>> "Cannot specify usual identifier externally" in text
+    >>> "Cannot specify any identifier in ServiceRequest" in text
     True
 
 No AnalysisRequest is created:
@@ -180,7 +180,7 @@ should not carry external identifiers (only Specimen should):
     >>> outcome = json.loads(browser.contents)
     >>> issue = outcome["issue"][0]
     >>> text = issue["details"]["text"]
-    >>> "Cannot specify external identifier in ServiceRequest" in text
+    >>> "Cannot specify any identifier in ServiceRequest" in text
     True
 
 No AnalysisRequest is created:

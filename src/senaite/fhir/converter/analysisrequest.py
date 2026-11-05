@@ -4,13 +4,10 @@ from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SPECIMEN_STATUSES
 from senaite.fhir.converter import first_by
-from senaite.fhir.converter import reject_any_identifier
-from senaite.fhir.converter import reject_internal_identifier
+from senaite.fhir.converter import ResourceToContent
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_profile_url
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
-from senaite.fhir.converter import to_naming_system_url
-from senaite.fhir.converter import validate_external_identifier
 from senaite.fhir.converter.person import ResourceToPerson
 from senaite.fhir.exceptions import ServiceRequestValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
@@ -163,30 +160,21 @@ class AnalysisRequestToSpecimen(object):
 
 @adapter(IServiceRequestResource)
 @implementer(IFHIRToContent)
-class ResourceToAnalysisRequest(object):
-
-    def __init__(self, resource):
-        self.resource = resource
-
-    def validate(self):
-        """Runs all the validators here. Can be extended
-        """
-        self.validate_identifiers()
+class ResourceToAnalysisRequest(ResourceToContent):
 
     def validate_identifiers(self):
-        """Validates identifiers"""
-        reject_internal_identifier(self.resource, "ServiceRequest")
-        validate_external_identifier(self.resource, "ServiceRequest")
-        reject_any_identifier(self.resource, "ServiceRequest")
+        """Raises a ResourceValidationError if the ServiceRequest carries any
+        identifier, or if the identifiers of its Specimen do not follow the
+        identifiers pattern
+        """
+        # the ServiceRequest supports no external identifier, so it cannot
+        # carry any identifier at all
+        super(ResourceToAnalysisRequest, self).validate_identifiers()
 
         specimen = self.get_specimen()
         if specimen:
-            reject_internal_identifier(specimen, "Specimen")
-            validate_external_identifier(
-                specimen,
-                "Specimen",
-                to_naming_system_url("client-sample-id"),
-            )
+            self.validate_internal_identifier(specimen)
+            self.validate_external_identifier("client-sample-id", specimen)
 
     def to_content_dict(self):
         # TODO We don't validate category + SNOMED code (is necessary?)
