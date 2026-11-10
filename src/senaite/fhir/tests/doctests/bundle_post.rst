@@ -288,7 +288,7 @@ a different family name:
     ...                 for name in resource.get("name") or []:
     ...                     name["family"] = family
     ...         if resource["resourceType"] == "ServiceRequest":
-    ...             reference = "Practitioner/{}".format(unknown_id)
+    ...             reference = "urn:uuid:{}".format(unknown_id)
     ...             resource["requester"]["reference"] = reference
     ...     data = fapi.to_fhir_resource(data)
     ...     service_request = data.first_entry("resourceType", "ServiceRequest")
@@ -426,7 +426,7 @@ Post the bundle with a `Practitioner` that has a FHIR id not known by SENAITE:
     ...     if resource["resourceType"] == "Practitioner":
     ...         entry["fullUrl"] = "urn:uuid:{}".format(practitioner_id)
     ...     if resource["resourceType"] == "ServiceRequest":
-    ...         reference = "Practitioner/{}".format(practitioner_id)
+    ...         reference = "urn:uuid:{}".format(practitioner_id)
     ...         resource["requester"]["reference"] = reference
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(repeat),

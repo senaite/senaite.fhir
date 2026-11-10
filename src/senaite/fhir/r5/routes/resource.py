@@ -301,7 +301,9 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
 
     entries = []
     for spec_ref in sr_resource.specimen:
-        specimen = bundle.first_entry("id", str(spec_ref.UUID()))
+        # already resolved while converting the ServiceRequest, which only
+        # accepts a Specimen entry of the bundle (see `get_specimen`)
+        specimen = bundle.get_entry_by_full_url(spec_ref.reference)
         if not specimen:
             continue
 

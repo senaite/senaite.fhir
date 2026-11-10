@@ -90,7 +90,7 @@ Same for the Practitioner, referenced from ServiceRequest.requester:
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
     ...     sr_entry = get_entry(bundle, "ServiceRequest")
     ...     sr_entry["resource"]["requester"]["reference"] = (
-    ...         "Practitioner/{}".format(new_id))
+    ...         "urn:uuid:{}".format(new_id))
 
 
 Setup objects

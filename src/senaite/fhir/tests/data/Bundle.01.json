@@ -186,7 +186,7 @@
       },
       "collection" : {
         "collector" : {
-          "reference" : "Practitioner/ab1ecb26-1942-4855-a32d-ee82c62e5327"
+          "reference" : "urn:uuid:ab1ecb26-1942-4855-a32d-ee82c62e5327"
         },
         "collectedDateTime" : "2026-04-08T08:30:00+10:00",
         "bodySite" : {
@@ -392,14 +392,14 @@
         }]
       }],
       "subject" : {
-        "reference" : "Patient/ddaf107d-a44d-4b7b-966b-65d82de495cc"
+        "reference" : "urn:uuid:ddaf107d-a44d-4b7b-966b-65d82de495cc"
       },
       "requester" : {
-        "reference" : "Practitioner/ab1ecb26-1942-4855-a32d-ee82c62e5327",
+        "reference" : "urn:uuid:ab1ecb26-1942-4855-a32d-ee82c62e5327",
         "type" : "Practitioner"
       },
       "specimen" : [{
-        "reference" : "Specimen/9b8a478f-fd26-4765-8f09-3b3ea0ec6637"
+        "reference" : "urn:uuid:9b8a478f-fd26-4765-8f09-3b3ea0ec6637"
       }],
       "note" : [{
         "text" : "Fasting specimen. Clinician suspects hepatic steatosis. Please process urgently."

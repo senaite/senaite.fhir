@@ -103,6 +103,30 @@ class Bundle(FHIRResource):
         """
         return get_by_key(self.entry, key, value)
 
+    def get_raw_entry(self, full_url):
+        """Returns the raw entry (as submitted) whose `fullUrl` is exactly the
+        one passed-in, or None. Unlike `entry`, it includes the entries whose
+        resource is not a valid FHIRResource
+        """
+        for entry in self.get("entry") or []:
+            if entry.get("fullUrl") == full_url:
+                return entry
+        return None
+
+    def get_entry_by_full_url(self, full_url):
+        """Returns the (already-extracted) FHIRResource of the entry whose
+        `fullUrl` is exactly the one passed-in, or None
+        """
+        if not full_url:
+            return None
+
+        for resource in self.entry:
+            entry = self.get_entry(resource) or {}
+            if entry.get("fullUrl") == full_url:
+                return resource
+
+        return None
+
     def set_object(self, resource, obj):
         """Keeps track of the object the given (already-extracted) entry
         resource was resolved to while this bundle is processed, so the other

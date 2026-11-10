@@ -22,9 +22,11 @@ from senaite.fhir.config import FHIR_STORAGE_KEY
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
+from senaite.fhir.config import URN_UUID_PREFIX
 from senaite.fhir.exceptions import FHIRAPIError
 from senaite.fhir.exceptions import IdentifierValidationError
 from senaite.fhir.exceptions import LogicalIdValidationError
+from senaite.fhir.exceptions import ReferenceValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -730,6 +732,59 @@ def validate_no_logical_id(resource):
     entry = bundle["entry"][index]
     if "id" in (entry.get("resource") or {}):
         raise LogicalIdValidationError(index)
+
+
+def resolve_reference(resource, reference, resource_type, expression,
+                      allow_existing=True):
+    """Resolves a Reference held by the given bundle entry resource
+
+    A `urn:uuid:<id>` reference points to the entry of the same bundle whose
+    `fullUrl` is exactly the reference. A `{Resource}/{id}` reference points to
+    an existing object, by the FHIR id SENAITE returned in the `fullUrl` of a
+    bundle response. Neither falls back to the other.
+
+    :param resource: the FHIR resource of a bundle entry holding the reference
+    :param reference: the Reference data type to resolve
+    :param resource_type: the resource type the reference must point to
+    :param expression: FHIRPath expression of the reference element
+    :param allow_existing: whether a reference to an existing object is valid
+    :returns: the FHIR resource of the bundle entry for a `urn:uuid:<id>`
+        reference, or the existing object for a `{Resource}/{id}` reference
+    :raises ReferenceValidationError: if the reference cannot be resolved
+    """
+    value = (reference.reference if reference else None) or ""
+
+    if value.startswith(URN_UUID_PREFIX):
+        bundle = resource.get("_bundle")
+        entry = bundle.get_raw_entry(value) if bundle else None
+        if not entry:
+            raise ReferenceValidationError(
+                "%s: no entry with fullUrl '%s' in the Bundle"
+                % (expression, value), expression)
+
+        entry_type = (entry.get("resource") or {}).get("resourceType") or ""
+        if entry_type != resource_type:
+            raise ReferenceValidationError(
+                "%s: the entry with fullUrl '%s' is a '%s', not a %s"
+                % (expression, value, entry_type, resource_type), expression)
+
+        return bundle.get_entry_by_full_url(value)
+
+    obj = None
+    prefix = "%s/" % resource_type
+    if allow_existing and value.startswith(prefix):
+        uid = reference.UID()
+        obj = get_object(uid, default=None) if uid else None
+        portal_type = dict(FHIR_RESOURCE_TO_PORTAL_TYPE).get(resource_type)
+        if obj and api.get_portal_type(obj) != portal_type:
+            obj = None
+
+    if not obj:
+        raise ReferenceValidationError(
+            "%s: no %s found for '%s'" % (expression, resource_type, value),
+            expression)
+
+    return obj
 
 
 def validate_internal_identifier(resource):

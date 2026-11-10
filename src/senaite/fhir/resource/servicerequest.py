@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import itertools
 
+from senaite.fhir.config import CLIENT_EXTENSION_URL
 from senaite.fhir.datatype.annotation import Annotation
 from senaite.fhir.datatype.codeableconcept import CodeableConcept
 from senaite.fhir.datatype.codeablereference import CodeableReference
@@ -146,10 +147,8 @@ class ServiceRequestResource(FHIRResource):
         request. In SENAITE this maps to the Client registered in the LIMS. If
         the client is not yet known, it will be created on receipt.
         """
-        # TODO move this url out of here
-        url = "https://fhir.senaite.org/StructureDefinition/SenaiteClient"
         for ext in self.extension:
-            if ext.url == url:
+            if ext.url == CLIENT_EXTENSION_URL:
                 ref = ext.get("valueReference")
                 if ref:
                     return Reference(ref)

@@ -74,15 +74,15 @@ Helpers:
     ...                 if api.get_portal_type(obj) == "Patient"])
 
 Give the Patient entry another placeholder id. The ServiceRequest's
-`subject` reference is a literal `Patient/{id}` pointing at the fixture's
-original placeholder, so it must be repointed too:
+`subject` reference is the `urn:uuid:{id}` fullUrl of the fixture's original
+Patient entry, so it must be repointed too:
 
     >>> def set_patient_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Patient")
     ...     entry["fullUrl"] = "urn:uuid:{}".format(new_id)
     ...     sr_entry = get_entry(bundle, "ServiceRequest")
     ...     sr_entry["resource"]["subject"]["reference"] = (
-    ...         "Patient/{}".format(new_id))
+    ...         "urn:uuid:{}".format(new_id))
 
 
 Setup objects

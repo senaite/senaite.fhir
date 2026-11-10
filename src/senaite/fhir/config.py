@@ -5,6 +5,11 @@ FHIR_STORAGE_KEY = "senaite.fhir.storage"
 SPECIMEN_BARCODE_EXTENSION_URL = (
     "https://fhir.senaite.org/StructureDefinition/SenaiteSpecimenBarcode"
 )
+CLIENT_EXTENSION_URL = (
+    "https://fhir.senaite.org/StructureDefinition/SenaiteClient"
+)
+# prefix of the references to the entries of the same bundle, by fullUrl
+URN_UUID_PREFIX = "urn:uuid:"
 
 # Ids of the NamingSystems of the resources' identifiers: the internal one
 # (`use="usual"`), assigned by SENAITE, and the external one

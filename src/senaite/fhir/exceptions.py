@@ -76,6 +76,20 @@ class LogicalIdValidationError(ResourceValidationError):
             coding=coding)
 
 
+class ReferenceValidationError(ResourceValidationError):
+    """Raised when a reference of an incoming resource cannot be resolved,
+    either to an entry of the same bundle (`urn:uuid:<id>`) or to an existing
+    resource in SENAITE (`{Resource}/{id}`)
+
+    :param message: human-readable description of the issue
+    :param expression: FHIRPath expression of the reference element
+    """
+
+    def __init__(self, message, expression):
+        super(ReferenceValidationError, self).__init__(
+            message, expression=[expression], code="invalid", status=422)
+
+
 class ServiceRequestValidationError(ResourceValidationError):
     """Raised when a ServiceRequest violates validation rules
     """
