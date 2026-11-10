@@ -412,6 +412,18 @@ def get_object(thing, default=_marker):
         ``FHIRAPIError`` is raised
     :returns: the resolved content object, or ``default``
     """
+    # the id of a bundle entry is a placeholder only meaningful within its
+    # bundle: resolve it to the object the entry was resolved to while
+    # processing the bundle, never through the FHIR catalog
+    bundle = thing.get("_bundle") if is_fhir_resource(thing) else None
+    if bundle:
+        obj = bundle.get_object(thing)
+        if obj:
+            return obj
+        if default is _marker:
+            fail(msg="Not Found", status=404)
+        return default
+
     # a FHIR resource: resolve its counterpart, narrowed to the mapped type.
     # This must be checked before the ``is_uuid`` branch below, as a resource
     # also satisfies ``is_uuid`` (its id is a UUID) and would otherwise be
@@ -460,6 +472,11 @@ def find_object_for(resource, default=_marker):
     AnalysisRequest instead of to its SampleType counterpart. Callers can rely
     on the result being of the mapped portal type without knowing any of these
     FHIR-to-SENAITE mapping details.
+
+    The id of a bundle entry is a placeholder only meaningful within its
+    bundle, so the first step does not search the FHIR catalog for it: it
+    only resolves to the object the entry was already resolved to while
+    processing that same bundle (see ``get_object``).
 
     This is used by the bundle POST endpoint to resolve existing content
     (so it gets updated instead of duplicated) before falling back to create.
@@ -929,11 +946,24 @@ def link_fhir_resource(obj, resource, secondary=False):
     resource_uid = get_uid(resource)
     resource_type = resource.resourceType
 
+    # the id of a bundle entry is a placeholder only meaningful within its
+    # bundle (see `bundle.get_entry_id`): keep track of the object for the
+    # other entries of the bundle, but never link the placeholder to it. The
+    # counterpart resource is identified by the object's own UID instead
+    bundle = resource.get("_bundle")
+    if bundle:
+        bundle.set_object(resource, obj)
+        resource_uid = api.get_uid(obj)
+
     # link the resource's UID to the given object
     kwargs = {resource_type: resource_uid}
     set_fhir_uids(obj, **kwargs)
 
     annotation = get_fhir_storage(obj)
+
+    # snapshot of the resource, identified by the uid linked to the object
+    data = resource.to_dict()
+    data["id"] = str(get_uuid(resource_uid))
 
     if secondary:
         # Snapshot the resource in the type-keyed ``resources`` slot. It is the
@@ -943,7 +973,7 @@ def link_fhir_resource(obj, resource, secondary=False):
         # ``set_fhir_uids``: mutating the nested dict in place does not mark
         # the PersistentDict as changed, so the write can get lost.
         resources = dict(annotation.get("resources") or {})
-        resources[resource_type] = resource.to_dict()
+        resources[resource_type] = data
         annotation["resources"] = resources
         return
 
@@ -957,7 +987,7 @@ def link_fhir_resource(obj, resource, secondary=False):
     # it; only overwrite when the slot is empty or already of this same type.
     existing_type = (annotation.get("data") or {}).get("resourceType")
     if not existing_type or existing_type == resource_type:
-        annotation["data"] = resource.to_dict()
+        annotation["data"] = data
 
 
 def slugify(value, repl="-"):

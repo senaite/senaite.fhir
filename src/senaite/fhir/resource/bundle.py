@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from bika.lims import api
 from senaite.fhir.api import to_fhir_resource
 from senaite.fhir.converter import get_by_key
 from senaite.fhir.datatype.identifier import Identifier
@@ -101,6 +102,29 @@ class Bundle(FHIRResource):
         the value passed-in
         """
         return get_by_key(self.entry, key, value)
+
+    def set_object(self, resource, obj):
+        """Keeps track of the object the given (already-extracted) entry
+        resource was resolved to while this bundle is processed, so the other
+        entries referring to it can be resolved too (see `get_object`)
+
+        The id of an entry is a placeholder only meaningful within this
+        bundle: it is never linked to the object, so it cannot be used to
+        resolve it in a later request
+        """
+        if not resource.id:
+            return
+        objects = self.setdefault("_objects", {})
+        objects[resource.id] = api.get_uid(obj)
+
+    def get_object(self, resource):
+        """Returns the object the given (already-extracted) entry resource was
+        resolved to while processing this bundle, or None
+        """
+        uid = (self.get("_objects") or {}).get(resource.id)
+        if not uid:
+            return None
+        return api.get_object_by_uid(uid, default=None)
 
     def get_entry_index(self, resource):
         """Returns the position in the bundle of the entry of the given
