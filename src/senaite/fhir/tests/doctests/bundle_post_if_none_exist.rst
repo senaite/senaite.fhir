@@ -73,12 +73,9 @@ Helpers:
     ...     return len([obj for obj in portal.patients.objectValues()
     ...                 if api.get_portal_type(obj) == "Patient"])
 
-Each scenario below that creates or links a Patient uses its own Patient
-placeholder id, so a later scenario's link doesn't silently steal the FHIR
-id a previous scenario already linked to a different Patient (the same
-gotcha documented in `bundle_post_order_detail` for ServiceRequest ids). The
-ServiceRequest's `subject` reference is a literal `Patient/{id}` pointing
-at the fixture's original placeholder, so it must be repointed too:
+Give the Patient entry another placeholder id. The ServiceRequest's
+`subject` reference is a literal `Patient/{id}` pointing at the fixture's
+original placeholder, so it must be repointed too:
 
     >>> def set_patient_id(bundle, new_id):
     ...     entry = get_entry(bundle, "Patient")
@@ -229,6 +226,8 @@ James Nguyen / MRN-20394857 from the fixture) is validated but not applied:
     >>> entry["request"]["ifNoneExist"] = (
     ...     "identifier=https://fhir.senaite.org/NamingSystem/patient-mrn"
     ...     "|MRN-PRE-EXISTING")
+    >>> portal._p_jar.sync()
+    >>> samples_before = len(client.objectValues("AnalysisRequest"))
     >>> status, response = post_bundle(bundle)
     >>> status
     '200 OK'
@@ -263,23 +262,29 @@ are untouched -- the submitted body was discarded, not applied:
     >>> existing.getMRN()
     'MRN-PRE-EXISTING'
 
-The bundle's placeholder FHIR id is now linked to the pre-existing Patient,
-same as a real create/update would do:
+The response identifies the matched Patient by its own FHIR id:
 
-    >>> patient_entry = get_entry(bundle, "Patient")
-    >>> match = fapi.get_object_by_fhir_uid(
-    ...     patient_entry["fullUrl"].split(":")[-1], "Patient")
-    >>> fapi.get_uid(match) == fapi.get_uid(existing)
+    >>> patient_url = [e["fullUrl"] for e in response["entry"]
+    ...                if e["fullUrl"].startswith("Patient/")][0]
+    >>> patient_url == "Patient/{}".format(fapi.get_fhir_id(existing))
     True
 
-That link is also what lets the rest of the same bundle resolve the
-ServiceRequest's `subject` reference to the matched Patient rather than
-failing to find one -- the Sample is created successfully:
+The bundle's placeholder FHIR id is not linked to the pre-existing Patient:
+it is only meaningful within the bundle:
+
+    >>> patient_entry = get_entry(bundle, "Patient")
+    >>> fapi.get_object_by_fhir_uid(
+    ...     patient_entry["fullUrl"].split(":")[-1], "Patient",
+    ...     default=None) is None
+    True
+
+But the rest of the same bundle resolves the ServiceRequest's `subject`
+reference to the matched Patient rather than failing to find one -- the
+Sample is created successfully:
 
     >>> portal._p_jar.sync()
-    >>> samples = client.objectValues("AnalysisRequest")
-    >>> len(samples)
-    1
+    >>> len(client.objectValues("AnalysisRequest")) == samples_before + 1
+    True
 
 
 Success: one match on the internal system discards the body

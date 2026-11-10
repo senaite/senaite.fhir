@@ -35,7 +35,7 @@ class ResourceToContact(ResourceToPerson):
         if not bundle:
             return None
         org = bundle.first_entry("resourceType", "Organization")
-        return fapi.get_object(org, default=None)
+        return fapi.find_object_for(org, default=None)
 
     def to_content_dict(self):
         self.validate()

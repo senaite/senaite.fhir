@@ -406,12 +406,12 @@ When a `Bundle` carries no identifiers on either `ServiceRequest` or
     >>> response["type"]
     u'transaction-response'
 
-The same ServiceRequest resolves to the AnalysisRequest created above, which
-is updated and no longer has a ClientSampleID:
+The ids of the entries are not used to find existing objects, so a new
+AnalysisRequest is created, without a ClientSampleID:
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
-    1
+    2
     >>> new_sample = [s for s in samples if not s.getClientSampleID()][0]
     >>> new_sample.getClientSampleID()

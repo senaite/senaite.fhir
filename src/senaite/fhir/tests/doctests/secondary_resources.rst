@@ -173,12 +173,18 @@ Post the bundle:
     >>> sample.getSampleType() == blood
     True
 
-The Specimen's FHIR id is linked to the sample, alongside the sample's own
-`ServiceRequest` id:
+The Specimen is linked to the sample, alongside the sample's own
+`ServiceRequest`. The placeholders of the bundle entries are only meaningful
+within the bundle: both are identified by the sample's own UID instead:
 
+    >>> sample_fhir_id = str(fapi.get_uuid(api.get_uid(sample)))
     >>> fapi.get_fhir_id(sample, "Specimen") == posted_specimen_id
+    False
+    >>> fapi.get_fhir_id(sample, "Specimen") == sample_fhir_id
     True
     >>> fapi.get_fhir_id(sample, "ServiceRequest") == posted_sr_id
+    False
+    >>> fapi.get_fhir_id(sample, "ServiceRequest") == sample_fhir_id
     True
 
 Only the `Specimen` is snapshotted in the `resources` slot. The sample's
@@ -200,14 +206,14 @@ The snapshots keep the resource only, not the bundle it came with:
 Reading back a secondary resource
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`get_fhir_resource` returns the Specimen as it came in, with the id, the
-SNOMED type coding, the collection body site and the notes carried by the
-bundle:
+`get_fhir_resource` returns the Specimen as it came in, with the SNOMED type
+coding, the collection body site and the notes carried by the bundle, but
+identified by the id assigned by SENAITE:
 
     >>> stored = fapi.get_fhir_resource(sample, "Specimen")
     >>> stored.resourceType
     u'Specimen'
-    >>> stored.id == posted_specimen_id
+    >>> stored.id == sample_fhir_id
     True
     >>> stored["type"]["coding"][0]["code"]
     u'119364003'
@@ -217,13 +223,11 @@ bundle:
     True
 
 This is *not* what the `AnalysisRequestToSpecimen` adapter would synthesize
-from the sample. That one gets its identity from the sample and knows nothing
-about the collection details of the incoming Specimen:
+from the sample. That one has the same identity, but knows nothing about the
+collection details of the incoming Specimen:
 
     >>> synthesized = fapi.to_fhir_resource(sample, resource_type="Specimen")
-    >>> synthesized.id == posted_specimen_id
-    False
-    >>> synthesized.id == str(fapi.get_uuid(api.get_uid(sample)))
+    >>> synthesized.id == stored.id
     True
     >>> "bodySite" in synthesized.get("collection", {})
     False
@@ -233,7 +237,7 @@ own FHIR id and through the `Specimen` listing:
 
     >>> browser.open("{}/Specimen/{}".format(fhir_url, stored.id))
     >>> served = json.loads(browser.contents)
-    >>> served["id"] == posted_specimen_id
+    >>> served["id"] == sample_fhir_id
     True
     >>> served["collection"]["bodySite"]["concept"]["coding"][0]["display"]
     u'Antecubital fossa'
@@ -242,7 +246,7 @@ own FHIR id and through the `Specimen` listing:
     >>> listing = json.loads(browser.contents)
     >>> listing["total"]
     1
-    >>> listing["entry"][0]["resource"]["id"] == posted_specimen_id
+    >>> listing["entry"][0]["resource"]["id"] == sample_fhir_id
     True
 
 
