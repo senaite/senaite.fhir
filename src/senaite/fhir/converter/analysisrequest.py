@@ -274,10 +274,23 @@ class ResourceToAnalysisRequest(ResourceToContent):
         :raises ResourceValidationError: if missing, repeated or unresolvable
         """
         ref = self.get_reference(key)
-        expression = "%s.%s" % (self.resource.resourceType, key)
+        expression = self.get_reference_expression(key)
         return fapi.resolve_reference(self.resource, ref, resource_type,
                                       expression,
                                       allow_existing=allow_existing)
+
+    def get_reference_expression(self, path):
+        """Returns the FHIRPath expression of the reference held under the
+        given path, from the entry of this resource in its bundle, e.g.
+        ``Bundle.entry[4].resource.subject.reference``
+        """
+        bundle = self.resource.get("_bundle")
+        index = bundle.get_entry_index(self.resource) if bundle else None
+        if index is None:
+            base = self.resource.resourceType
+        else:
+            base = "Bundle.entry[%s].resource" % index
+        return "%s.%s.reference" % (base, path)
 
     @memoize
     def get_specimen(self):
@@ -380,8 +393,14 @@ class ResourceToAnalysisRequest(ResourceToContent):
     def get_client(self):
         """Returns the client the sample where the sample has to be created
         """
-        expression = "%s.extension('%s').value" % (
-            self.resource.resourceType, CLIENT_EXTENSION_URL)
+        urls = [ext.url for ext in self.resource.extension]
+        path = "extension"
+        if CLIENT_EXTENSION_URL in urls:
+            index = urls.index(CLIENT_EXTENSION_URL)
+            path = "extension[%s].valueReference" % index
+
+        expression = self.get_reference_expression(path)
+
         # an existing client (Organization/<id>) or a bundle entry
         sibling = fapi.resolve_reference(self.resource, self.resource.client,
                                          "Organization", expression)
