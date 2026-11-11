@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from senaite.fhir.config import OPERATION_OUTCOME_SYSTEM
 from senaite.jsonapi.exceptions import APIError
 
 
@@ -74,6 +75,71 @@ class LogicalIdValidationError(ResourceValidationError):
         super(LogicalIdValidationError, self).__init__(
             message, expression=expression, code="invalid", status=422,
             coding=coding)
+
+
+class ReferenceValidationError(ResourceValidationError):
+    """Raised when a reference of an incoming resource cannot be resolved,
+    either to an entry of the same bundle (`urn:uuid:<id>`) or to an existing
+    resource in SENAITE (`{Resource}/{id}`)
+
+    :param message: human-readable description of the issue
+    :param expression: FHIRPath expression of the reference element
+    :param code: OperationOutcome issue type
+    :param coding: OperationOutcome code for the issue's `details`
+    """
+
+    def __init__(self, message, expression, code="invalid", coding=None):
+        if coding:
+            coding = [{"system": OPERATION_OUTCOME_SYSTEM, "code": coding}]
+        super(ReferenceValidationError, self).__init__(
+            message, expression=[expression], code=code, status=422,
+            coding=coding)
+
+
+class ReferenceNotFoundError(ReferenceValidationError):
+    """Raised when a `{Resource}/{id}` reference points to a resource that
+    does not exist in SENAITE
+    """
+
+    def __init__(self, reference, resource_type, expression):
+        message = (
+            "{0} does not exist in SENAITE. Verify the logical ID or include "
+            "the {1} resource in this Bundle using urn:uuid:... reference."
+        ).format(reference, resource_type)
+        super(ReferenceNotFoundError, self).__init__(
+            message, expression, code="not-found", coding="MSG_NO_EXIST")
+
+
+class AmbiguousReferenceError(ReferenceValidationError):
+    """Raised when a `{Resource}/{id}` reference points to an existing
+    resource that an entry of the same bundle resolves to as well
+    """
+
+    def __init__(self, reference, resource_type, expression):
+        message = (
+            "Reference '{0}' is ambiguous: {1} with this ID exists in "
+            "SENAITE, but a {1} entry is also present in this Bundle. Either "
+            "remove the {1} from the Bundle and use the existing resource, or "
+            "remove the reference and use the urn:uuid from the Bundle entry."
+        ).format(reference, resource_type)
+        super(AmbiguousReferenceError, self).__init__(
+            message, expression, code="conflict", coding="MSG_LOCAL_FAIL")
+
+
+class InvalidReferenceError(ReferenceValidationError):
+    """Raised when a resource that is always created new, such as Specimen,
+    is referenced in the `{Resource}/{id}` form
+    """
+
+    def __init__(self, resource_type, expression):
+        message = (
+            "{0} references must not use ResourceType/{{id}} format. {0} is "
+            "always created new. Reference the {0} entry in this Bundle using "
+            "urn:uuid:... instead."
+        ).format(resource_type)
+        super(InvalidReferenceError, self).__init__(
+            message, expression, code="business-rule",
+            coding="MSG_LOCAL_FAIL")
 
 
 class ServiceRequestValidationError(ResourceValidationError):

@@ -186,7 +186,7 @@
       },
       "collection" : {
         "collector" : {
-          "reference" : "Practitioner/c3d4e5f6-a7b8-9012-cdef-123456789012"
+          "reference" : "urn:uuid:c3d4e5f6-a7b8-9012-cdef-123456789012"
         },
         "collectedDateTime" : "2026-05-14T06:15:00+01:00",
         "bodySite" : {
@@ -356,14 +356,14 @@
         }]
       }],
       "subject" : {
-        "reference" : "Patient/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        "reference" : "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       },
       "requester" : {
-        "reference" : "Practitioner/c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "reference" : "urn:uuid:c3d4e5f6-a7b8-9012-cdef-123456789012",
         "type" : "Practitioner"
       },
       "specimen" : [{
-        "reference" : "Specimen/d4e5f6a7-b8c9-0123-defa-234567890123"
+        "reference" : "urn:uuid:d4e5f6a7-b8c9-0123-defa-234567890123"
       }],
       "note" : [{
         "text" : "ED admission. Patient presents with acute chest pain radiating to left arm, onset 2 hours prior. Rule out NSTEMI. Serial troponin required."

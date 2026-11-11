@@ -288,7 +288,7 @@ a different family name:
     ...                 for name in resource.get("name") or []:
     ...                     name["family"] = family
     ...         if resource["resourceType"] == "ServiceRequest":
-    ...             reference = "Practitioner/{}".format(unknown_id)
+    ...             reference = "urn:uuid:{}".format(unknown_id)
     ...             resource["requester"]["reference"] = reference
     ...     data = fapi.to_fhir_resource(data)
     ...     service_request = data.first_entry("resourceType", "ServiceRequest")
@@ -343,13 +343,16 @@ Restore the external ID of the Contact:
     >>> transaction.commit()
 
 
-Re-post the same Bundle (idempotent update)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Re-post the same Bundle
+~~~~~~~~~~~~~~~~~~~~~~~
 
-Posting the same Bundle again resolves every resource to its existing
-counterpart and updates it in place, instead of creating duplicates. We
-tweak the ServiceRequest priority (`routine` -> `stat`) to observe that
-the change is propagated to the Sample. The Sample is currently routine::
+The ids of the entries of a Bundle are placeholders only meaningful within
+the Bundle, so they are not used to find existing objects. Posting the same
+Bundle again resolves the Organization, Practitioner and Patient to their
+existing counterparts by their external identifiers, but the ServiceRequest
+creates a new Sample. We tweak the ServiceRequest priority (`routine` ->
+`stat`) to observe that the existing Sample is not updated. The Sample is
+currently routine::
 
     >>> sample.getPriority()
     '5'
@@ -363,25 +366,34 @@ Bump the priority on the same ServiceRequest and re-post the Bundle::
     ...              content_type="application/json")
     >>> response = json.loads(browser.contents)
 
-The same five resources are reported, now consistently as updated::
+The same five resources are reported. The ServiceRequest and its Specimen
+as created, the rest as updated::
 
     >>> entries = response["entry"]
-    >>> sorted([e["fullUrl"].split("/")[0] for e in entries])
-    [u'Organization', u'Patient', u'Practitioner', u'ServiceRequest', u'Specimen']
+    >>> status = dict((e["fullUrl"].split("/")[0], e["response"]["status"])
+    ...               for e in entries)
+    >>> sorted(status.items())
+    [(u'Organization', u'200 OK'), (u'Patient', u'200 OK'), (u'Practitioner', u'200 OK'), (u'ServiceRequest', u'201 Created'), (u'Specimen', u'201 Created')]
 
-    >>> sorted(set(e["response"]["status"] for e in entries))
-    [u'200 OK']
-
-No duplicates are created -- it is still the same Sample, now `stat`::
+A new `stat` Sample is created, and the existing one is still routine::
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
-    1
-    >>> fapi.get_uid(samples[0]) == fapi.get_uid(sample)
-    True
-    >>> samples[0].getPriority()
+    2
+    >>> new_sample = [s for s in samples if s != sample][0]
+    >>> new_sample.getPriority()
     '1'
+    >>> sample.getPriority()
+    '5'
+
+The response identifies the new Sample by the id assigned by SENAITE, not by
+the placeholder of the entry:
+
+    >>> sr_url = [e["fullUrl"] for e in entries
+    ...           if e["fullUrl"].startswith("ServiceRequest/")][0]
+    >>> sr_url == "ServiceRequest/{}".format(fapi.get_fhir_id(new_sample))
+    True
 
 
 Practitioner matched by its external ID
@@ -414,7 +426,7 @@ Post the bundle with a `Practitioner` that has a FHIR id not known by SENAITE:
     ...     if resource["resourceType"] == "Practitioner":
     ...         entry["fullUrl"] = "urn:uuid:{}".format(practitioner_id)
     ...     if resource["resourceType"] == "ServiceRequest":
-    ...         reference = "Practitioner/{}".format(practitioner_id)
+    ...         reference = "urn:uuid:{}".format(practitioner_id)
     ...         resource["requester"]["reference"] = reference
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(repeat),
@@ -427,8 +439,9 @@ The `Practitioner` is reported as updated rather than created:
     ...  if e["fullUrl"].startswith("Practitioner/")]
     [u'200 OK']
 
-No new Contact was created, and the existing one is now linked to the new
-FHIR id of the `Practitioner`:
+No new Contact was created, and the existing one keeps its own FHIR id, as
+the placeholder of the `Practitioner` entry is only meaningful within the
+bundle:
 
     >>> portal._p_jar.sync()
     >>> contacts = [obj for obj in client.objectValues()
@@ -436,6 +449,9 @@ FHIR id of the `Practitioner`:
     >>> contacts == [contact]
     True
     >>> fapi.get_fhir_id(contact, "Practitioner") == practitioner_id
+    False
+    >>> fapi.get_fhir_id(contact, "Practitioner") == str(
+    ...     fapi.get_uuid(api.get_uid(contact)))
     True
     >>> sample.getContact() == contact
     True
@@ -445,9 +461,8 @@ Nor was the Contact of the other Client modified:
     >>> fapi.get_fhir_id(another_contact, "Practitioner") == practitioner_id
     False
 
-The external ID of the `Practitioner` is required, even when it is matched by
-its FHIR id. Posting it without is rejected, and the Contact keeps the
-external ID it already has:
+The external ID of the `Practitioner` is required. Posting it without is
+rejected, and the Contact keeps the external ID it already has:
 
     >>> for entry in repeat["entry"]:
     ...     resource = entry["resource"]

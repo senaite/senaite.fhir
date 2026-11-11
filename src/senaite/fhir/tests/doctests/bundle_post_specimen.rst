@@ -173,13 +173,8 @@ Sample ID it did supply:
     >>> response_specimen["status"]
     u'available'
 
-The FHIR id of the stored Specimen is derived from the entry's fullUrl:
-
-    >>> bundle_specimen = [e for e in bundle["entry"]
-    ...                    if e["resource"]["resourceType"] == "Specimen"][0]
-    >>> stored_fhir_id = bundle_specimen["fullUrl"].split(":")[-1]
-    >>> specimen_entries[0]["fullUrl"] == "Specimen/{}".format(stored_fhir_id)
-    True
+The FHIR id of the stored Specimen is assigned by SENAITE. The placeholder of
+the entry's fullUrl is only meaningful within the bundle:
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
@@ -187,6 +182,19 @@ The FHIR id of the stored Specimen is derived from the entry's fullUrl:
     1
     >>> sample = samples[0]
     >>> sample.getSampleType() == serum
+    True
+
+    >>> bundle_specimen = [e for e in bundle["entry"]
+    ...                    if e["resource"]["resourceType"] == "Specimen"][0]
+    >>> placeholder = bundle_specimen["fullUrl"].split(":")[-1]
+    >>> stored_fhir_id = fapi.get_fhir_id(sample, "Specimen")
+    >>> stored_fhir_id == placeholder
+    False
+    >>> stored_fhir_id == str(fapi.get_uuid(api.get_uid(sample)))
+    True
+    >>> specimen_entries[0]["fullUrl"] == "Specimen/{}".format(stored_fhir_id)
+    True
+    >>> response_specimen["id"] == stored_fhir_id
     True
 
 The FHIR-backed Specimen is returned by `GET /Specimen`:
@@ -211,20 +219,23 @@ Fetching the Specimen by its FHIR id also works:
     >>> single == response_specimen
     True
 
+But not by the placeholder of the entry's fullUrl:
 
-SampleType re-linking on bundle update
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    >>> browser.open("{}/Specimen/{}".format(fhir_url, placeholder))
+    >>> json.loads(browser.contents).get("resourceType") == "Specimen"
+    False
 
-Change the Specimen's type display to `"EDTA Blood"` in the bundle and
-re-post.  The existing AnalysisRequest is found and updated; its SampleType
-must be switched even though the field is guarded by the
-`FieldEditSampleType` write permission::
+
+Re-posting the bundle creates a new Sample
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ids of the entries are not used to find existing objects, so posting the
+same bundle again, with another Specimen type, creates a new Sample rather
+than updating the existing one::
 
     >>> specimen_entry = [e for e in bundle["entry"]
     ...                   if e["resource"]["resourceType"] == "Specimen"][0]
     >>> specimen_entry["resource"]["type"]["coding"][0]["display"] = "EDTA Blood"
-
-Re-post the modified bundle:
 
     >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
     ...              content_type="application/json")
@@ -236,36 +247,39 @@ Re-post the modified bundle:
     >>> sr_entry = [e for e in entries2
     ...             if e["fullUrl"].startswith("ServiceRequest/")][0]
     >>> sr_entry["response"]["status"]
-    u'200 OK'
+    u'201 Created'
 
-The embedded Specimen reflects the update, and still carries the internal
-Sample ID:
+The embedded Specimen is the one of the new Sample:
 
     >>> specimen_entry2 = [e for e in entries2
     ...                    if e["fullUrl"].startswith("Specimen/")][0]
     >>> specimen2 = specimen_entry2["resource"]
     >>> specimen2["type"]["coding"][0]["display"]
     u'EDTA Blood'
-    >>> specimen2["identifier"] == response_specimen["identifier"]
-    True
-
-No duplicate AnalysisRequest is created:
+    >>> specimen2["id"] == stored_fhir_id
+    False
+    >>> specimen2["identifier"][0] == response_specimen["identifier"][0]
+    False
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
-    1
-
-The AnalysisRequest's SampleType is now `EDTA Blood`:
-
-    >>> samples[0].getSampleType() == edta
+    2
+    >>> new_sample = [s for s in samples if s != sample][0]
+    >>> new_sample.getSampleType() == edta
     True
 
-The updated Specimen (with the new type) is returned by `GET /Specimen`:
+The existing Sample was not modified:
+
+    >>> sample.getSampleType() == serum
+    True
+
+Both Specimens are returned by `GET /Specimen`:
 
     >>> browser.open("{}/Specimen".format(fhir_url))
     >>> listing2 = json.loads(browser.contents)
     >>> listing2["total"]
-    1
-    >>> listing2["entry"][0]["resource"]["type"]["coding"][0]["display"]
-    u'EDTA Blood'
+    2
+    >>> sorted([e["resource"]["type"]["coding"][0]["display"]
+    ...         for e in listing2["entry"]])
+    [u'EDTA Blood', u'Serum specimen']

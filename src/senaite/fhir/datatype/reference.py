@@ -2,6 +2,7 @@
 
 from senaite.fhir.datatype.element import Element
 from senaite.fhir import api as fapi
+from senaite.fhir.config import URN_UUID_PREFIX
 
 
 class Reference(Element):
@@ -26,6 +27,12 @@ class Reference(Element):
         Value set at https://hl7.org/fhir/R5/valueset-resource-types.html
         """
         return self.get("type")
+
+    def is_urn_uuid(self):
+        """Returns whether this is a `urn:uuid:<id>` reference, which points
+        to the entry of the same bundle whose `fullUrl` is the reference
+        """
+        return self.reference.startswith(URN_UUID_PREFIX)
 
     def UUID(self):
         """Handy accessor that returns the UUID of the reference

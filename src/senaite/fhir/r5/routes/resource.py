@@ -133,10 +133,10 @@ def post(context, request, resource_type=None):
                 # Conditional create: evaluate the ifNoneExist precondition
                 # instead of the generic find-or-create flow below. A match
                 # discards the submitted body entirely (no fapi.update) --
-                # only the FHIR id used by this bundle is linked to it.
+                # only the other entries of this bundle can refer to it.
                 obj = conditions.find_by_if_none_exist(resource, if_none_exist)  # noqa: E501
                 if obj:
-                    fapi.link_fhir_resource(obj, resource)
+                    resource["_bundle"].set_object(resource, obj)
                     status = "200 OK"
                     # warn if the discarded body names another identifier
                     issue = conditions.get_if_none_exist_warning(resource, obj)
@@ -175,8 +175,9 @@ def post(context, request, resource_type=None):
             }
             return OperationOutcome({"issue": [issue]})
 
-        # build the response entry
-        fullUrl = "%s/%s" % (resource.resourceType, resource.id)
+        # build the response entry, with the id assigned by SENAITE
+        fhir_id = fapi.get_fhir_id(obj, resource_type=resource.resourceType)
+        fullUrl = "%s/%s" % (resource.resourceType, fhir_id)
         modified = api.get_modification_date(obj) if obj else dtime.now()
         modified = dtime.to_iso_format(modified)
 
@@ -300,7 +301,9 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
 
     entries = []
     for spec_ref in sr_resource.specimen:
-        specimen = bundle.first_entry("id", str(spec_ref.UUID()))
+        # already resolved while converting the ServiceRequest, which only
+        # accepts a Specimen entry of the bundle (see `get_specimen`)
+        specimen = bundle.get_entry_by_full_url(spec_ref.reference)
         if not specimen:
             continue
 
@@ -319,7 +322,7 @@ def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
         rendered_specimen = fapi.get_fhir_resource(
             ar_obj, resource_type="Specimen")
         entries.append((specimen, {
-            "fullUrl": "Specimen/{}".format(specimen.id),
+            "fullUrl": "Specimen/{}".format(rendered_specimen.id),
             "resource": dict(rendered_specimen),
             "response": {
                 "status": ar_status,

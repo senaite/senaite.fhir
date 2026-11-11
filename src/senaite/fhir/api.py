@@ -22,9 +22,15 @@ from senaite.fhir.config import FHIR_STORAGE_KEY
 from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
+from senaite.fhir.config import URN_UUID_PREFIX
+from senaite.fhir.exceptions import AmbiguousReferenceError
 from senaite.fhir.exceptions import FHIRAPIError
 from senaite.fhir.exceptions import IdentifierValidationError
+from senaite.fhir.exceptions import InvalidReferenceError
 from senaite.fhir.exceptions import LogicalIdValidationError
+from senaite.fhir.exceptions import ReferenceNotFoundError
+from senaite.fhir.exceptions import ReferenceValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -412,6 +418,18 @@ def get_object(thing, default=_marker):
         ``FHIRAPIError`` is raised
     :returns: the resolved content object, or ``default``
     """
+    # the id of a bundle entry is a placeholder only meaningful within its
+    # bundle: resolve it to the object the entry was resolved to while
+    # processing the bundle, never through the FHIR catalog
+    bundle = thing.get("_bundle") if is_fhir_resource(thing) else None
+    if bundle:
+        obj = bundle.get_object(thing)
+        if obj:
+            return obj
+        if default is _marker:
+            fail(msg="Not Found", status=404)
+        return default
+
     # a FHIR resource: resolve its counterpart, narrowed to the mapped type.
     # This must be checked before the ``is_uuid`` branch below, as a resource
     # also satisfies ``is_uuid`` (its id is a UUID) and would otherwise be
@@ -460,6 +478,11 @@ def find_object_for(resource, default=_marker):
     AnalysisRequest instead of to its SampleType counterpart. Callers can rely
     on the result being of the mapped portal type without knowing any of these
     FHIR-to-SENAITE mapping details.
+
+    The id of a bundle entry is a placeholder only meaningful within its
+    bundle, so the first step does not search the FHIR catalog for it: it
+    only resolves to the object the entry was already resolved to while
+    processing that same bundle (see ``get_object``).
 
     This is used by the bundle POST endpoint to resolve existing content
     (so it gets updated instead of duplicated) before falling back to create.
@@ -715,6 +738,74 @@ def validate_no_logical_id(resource):
         raise LogicalIdValidationError(index)
 
 
+def resolve_reference(resource, reference, resource_type, expression,
+                      allow_existing=True):
+    """Resolves a Reference held by the given bundle entry resource
+
+    A `urn:uuid:<id>` reference points to the entry of the same bundle whose
+    `fullUrl` is exactly the reference. A `{Resource}/{id}` reference points to
+    an existing object, by the FHIR id SENAITE returned in the `fullUrl` of a
+    bundle response, and is ambiguous if an entry of the same bundle resolves
+    to that object as well. Neither falls back to the other.
+
+    :param resource: the FHIR resource of a bundle entry holding the reference
+    :param reference: the Reference data type to resolve
+    :param resource_type: the resource type the reference must point to
+    :param expression: FHIRPath expression of the reference element
+    :param allow_existing: whether a reference to an existing object is valid
+    :returns: the FHIR resource of the bundle entry for a `urn:uuid:<id>`
+        reference, or the existing object for a `{Resource}/{id}` reference
+    :raises ReferenceValidationError: if the reference cannot be resolved
+    """
+    value = (reference.reference if reference else None) or ""
+    if not value:
+        raise ResourceValidationError(
+            "%s is required" % expression, expression=[expression],
+            code="required")
+
+    if value.startswith(URN_UUID_PREFIX):
+        bundle = resource.get("_bundle")
+        entry = bundle.get_raw_entry(value) if bundle else None
+        if not entry:
+            raise ReferenceValidationError(
+                "No entry with fullUrl '%s' in this Bundle" % value,
+                expression)
+
+        entry_type = (entry.get("resource") or {}).get("resourceType") or ""
+        if entry_type != resource_type:
+            raise ReferenceValidationError(
+                "The entry with fullUrl '%s' is a '%s', not a %s"
+                % (value, entry_type, resource_type), expression)
+
+        return bundle.get_entry_by_full_url(value)
+
+    if not allow_existing:
+        raise InvalidReferenceError(resource_type, expression)
+
+    obj = None
+    if value.startswith("%s/" % resource_type):
+        uid = reference.UID()
+        obj = get_object(uid, default=None) if uid else None
+        portal_type = dict(FHIR_RESOURCE_TO_PORTAL_TYPE).get(resource_type)
+        if obj and api.get_portal_type(obj) != portal_type:
+            obj = None
+
+    if not obj:
+        raise ReferenceNotFoundError(value, resource_type, expression)
+
+    # ambiguous if an entry of the bundle is that same object too
+    bundle = resource.get("_bundle")
+    siblings = bundle.entry if bundle else []
+    for sibling in siblings:
+        if sibling.resourceType != resource_type:
+            continue
+        match = find_object_for(sibling, default=None)
+        if match and api.get_uid(match) == api.get_uid(obj):
+            raise AmbiguousReferenceError(value, resource_type, expression)
+
+    return obj
+
+
 def validate_internal_identifier(resource):
     """Raises an IdentifierValidationError if the resource carries an
     internal (usual) identifier. These are assigned by SENAITE only after
@@ -929,11 +1020,24 @@ def link_fhir_resource(obj, resource, secondary=False):
     resource_uid = get_uid(resource)
     resource_type = resource.resourceType
 
+    # the id of a bundle entry is a placeholder only meaningful within its
+    # bundle (see `bundle.get_entry_id`): keep track of the object for the
+    # other entries of the bundle, but never link the placeholder to it. The
+    # counterpart resource is identified by the object's own UID instead
+    bundle = resource.get("_bundle")
+    if bundle:
+        bundle.set_object(resource, obj)
+        resource_uid = api.get_uid(obj)
+
     # link the resource's UID to the given object
     kwargs = {resource_type: resource_uid}
     set_fhir_uids(obj, **kwargs)
 
     annotation = get_fhir_storage(obj)
+
+    # snapshot of the resource, identified by the uid linked to the object
+    data = resource.to_dict()
+    data["id"] = str(get_uuid(resource_uid))
 
     if secondary:
         # Snapshot the resource in the type-keyed ``resources`` slot. It is the
@@ -943,7 +1047,7 @@ def link_fhir_resource(obj, resource, secondary=False):
         # ``set_fhir_uids``: mutating the nested dict in place does not mark
         # the PersistentDict as changed, so the write can get lost.
         resources = dict(annotation.get("resources") or {})
-        resources[resource_type] = resource.to_dict()
+        resources[resource_type] = data
         annotation["resources"] = resources
         return
 
@@ -957,7 +1061,7 @@ def link_fhir_resource(obj, resource, secondary=False):
     # it; only overwrite when the slot is empty or already of this same type.
     existing_type = (annotation.get("data") or {}).get("resourceType")
     if not existing_type or existing_type == resource_type:
-        annotation["data"] = resource.to_dict()
+        annotation["data"] = data
 
 
 def slugify(value, repl="-"):

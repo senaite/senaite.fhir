@@ -1413,15 +1413,25 @@ POST route does::
     >>> api.get_parent(request_sample) == lab
     True
 
-The Specimen of the bundle is linked to the Sample::
+The Specimen of the bundle is linked to the Sample. The id of a bundle entry
+is a placeholder only meaningful within the bundle, so the Specimen is
+identified by the Sample's own UID instead::
 
+    >>> sample_fhir_id = str(fapi.get_uuid(api.get_uid(request_sample)))
     >>> specimen_resource = [r for r in bundle.entry
     ...                      if r.resourceType == "Specimen"][0]
-    >>> fapi.get_stored_fhir_resource(request_sample, "Specimen")["id"] == (
-    ...     specimen_resource["id"])
+    >>> stored = fapi.get_stored_fhir_resource(request_sample, "Specimen")
+    >>> stored["id"] == specimen_resource["id"]
+    False
+    >>> stored["id"] == sample_fhir_id
+    True
+    >>> fapi.get_object_by_fhir_uid(
+    ...     specimen_resource["id"], default=None) is None
     True
 
-Updating the Sample with the same ServiceRequest links it again::
+Updating the Sample with the same ServiceRequest links it again. The entries
+of the bundle resolve to the objects they were resolved to while processing
+it, but only within that same bundle::
 
     >>> service_request = [r for r in bundle.entry
     ...                    if r.resourceType == "ServiceRequest"][0]
@@ -1429,7 +1439,12 @@ Updating the Sample with the same ServiceRequest links it again::
     True
     >>> fapi.get_object(service_request) == request_sample
     True
-    >>> fapi.get_object_by_fhir_uid(specimen_resource["id"]) == request_sample
+    >>> other = fapi.to_fhir_resource(json.loads(raw))
+    >>> other_request = [r for r in other.entry
+    ...                  if r.resourceType == "ServiceRequest"][0]
+    >>> fapi.get_object(other_request, default=None) is None
+    True
+    >>> fapi.find_object_for(other_request) is None
     True
 
 

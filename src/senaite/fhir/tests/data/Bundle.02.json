@@ -212,7 +212,7 @@
         "collection": {
           "collectedDateTime": "2026-06-17T07:45:00+01:00",
           "collector": {
-            "reference": "Practitioner/81b6d3f7-2ae4-4c5e-9070-d5c8f2b14a63"
+            "reference": "urn:uuid:81b6d3f7-2ae4-4c5e-9070-d5c8f2b14a63"
           },
           "bodySite": {
             "concept": {
@@ -251,7 +251,7 @@
           {
             "url": "https://fhir.senaite.org/StructureDefinition/SenaiteClient",
             "valueReference": {
-              "reference": "Organization/915dbafe-1f2f-496d-9042-1de936f234e1"
+              "reference": "urn:uuid:915dbafe-1f2f-496d-9042-1de936f234e1"
             }
           }
         ],
@@ -308,15 +308,15 @@
           }
         ],
         "subject": {
-          "reference": "Patient/c7d2e491-5f1a-4b83-a629-8e4f0c3d9b12"
+          "reference": "urn:uuid:c7d2e491-5f1a-4b83-a629-8e4f0c3d9b12"
         },
         "requester": {
-          "reference": "Practitioner/81b6d3f7-2ae4-4c5e-9070-d5c8f2b14a63",
+          "reference": "urn:uuid:81b6d3f7-2ae4-4c5e-9070-d5c8f2b14a63",
           "type": "Practitioner"
         },
         "specimen": [
           {
-            "reference": "Specimen/3e9a5c84-7d10-4f2b-a851-6b0e3c97d428"
+            "reference": "urn:uuid:3e9a5c84-7d10-4f2b-a851-6b0e3c97d428"
           }
         ],
         "note": [

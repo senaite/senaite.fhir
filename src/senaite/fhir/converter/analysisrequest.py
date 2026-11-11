@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from bika.lims.interfaces import IAnalysisRequest
+from senaite.fhir.config import CLIENT_EXTENSION_URL
 from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.barcode import get_barcode_extension
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
@@ -259,11 +260,37 @@ class ResourceToAnalysisRequest(ResourceToContent):
         uid = ref.UID()
         return api.get_object_by_uid(uid, default=None)
 
-    def get_bundle_sibling(self, ref):
+    def resolve_reference(self, key, resource_type, allow_existing=True):
+        """Resolves the single Reference the resource holds under the given
+        key (see ``get_reference``), either to the FHIR resource of the entry
+        of the bundle it points to (``urn:uuid:<id>``), or to the existing
+        object it points to (``{Resource}/{id}``)
+
+        :param key: name of the reference element, e.g. ``"subject"``
+        :param resource_type: the resource type the reference must point to
+        :param allow_existing: whether a reference to an existing object is
+            valid
+        :returns: the FHIR resource of the bundle entry, or the object
+        :raises ResourceValidationError: if missing, repeated or unresolvable
+        """
+        ref = self.get_reference(key)
+        expression = self.get_reference_expression(key)
+        return fapi.resolve_reference(self.resource, ref, resource_type,
+                                      expression,
+                                      allow_existing=allow_existing)
+
+    def get_reference_expression(self, path):
+        """Returns the FHIRPath expression of the reference held under the
+        given path, from the entry of this resource in its bundle, e.g.
+        ``Bundle.entry[4].resource.subject.reference``
+        """
         bundle = self.resource.get("_bundle")
-        if not bundle:
-            return None
-        return bundle.first_entry("id", str(ref.UUID()))
+        index = bundle.get_entry_index(self.resource) if bundle else None
+        if index is None:
+            base = self.resource.resourceType
+        else:
+            base = "Bundle.entry[%s].resource" % index
+        return "%s.%s.reference" % (base, path)
 
     @memoize
     def get_specimen(self):
@@ -274,8 +301,10 @@ class ResourceToAnalysisRequest(ResourceToContent):
         reference:
         https://fhir.senaite.org/StructureDefinition-SenaiteServiceRequest.html
         """
-        ref = self.get_reference("specimen")
-        return self.get_bundle_sibling(ref)
+        # a Specimen is persisted along with the sample created for it, so
+        # it can only be a new one, from the same bundle
+        return self.resolve_reference("specimen", "Specimen",
+                                      allow_existing=False)
 
     @memoize
     def get_sample_type(self):
@@ -295,17 +324,10 @@ class ResourceToAnalysisRequest(ResourceToContent):
     def get_requester(self):
         """Returns the contact who requested the sample
         """
-        # Try with the reference UID first
-        ref = self.get_reference("requester")
-        uid = ref.UID()
-        obj = fapi.get_object(uid, default=None)
-        if obj:
-            return obj
-
-        # get the sibling from the bundle, if any
-        sibling = self.get_bundle_sibling(ref)
-        if not sibling:
-            raise ValueError("%r: No Contact for %s" % (self.resource, uid))
+        # an existing contact (Practitioner/<id>) or a bundle entry
+        sibling = self.resolve_reference("requester", "Practitioner")
+        if not fapi.is_fhir_resource(sibling):
+            return sibling
 
         # search the counterpart contact of the practitioner, by its external
         # id (use=secondary) within the client (see ContactFinder)
@@ -322,7 +344,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
             if contact:
                 return contact
 
-        raise ValueError("%r: No Contact for %s" % (self.resource, uid))
+        raise ValueError("%r: No Contact for %r" % (self.resource, sibling))
 
     def get_practitioner_fullname(self, practitioner):
         """Returns the fullname of the practitioner, built the same way the
@@ -358,8 +380,10 @@ class ResourceToAnalysisRequest(ResourceToContent):
     def get_patient(self):
         """Returns the patient assigned to this ServiceRequest
         """
-        ref = self.resource.subject
-        sibling = self.get_bundle_sibling(ref)
+        # an existing patient (Patient/<id>) or a bundle entry
+        sibling = self.resolve_reference("subject", "Patient")
+        if not fapi.is_fhir_resource(sibling):
+            return sibling
         obj = fapi.find_object_for(sibling, default=None)
         if obj:
             return obj
@@ -369,8 +393,19 @@ class ResourceToAnalysisRequest(ResourceToContent):
     def get_client(self):
         """Returns the client the sample where the sample has to be created
         """
-        ref = self.resource.client
-        sibling = self.get_bundle_sibling(ref)
+        urls = [ext.url for ext in self.resource.extension]
+        path = "extension"
+        if CLIENT_EXTENSION_URL in urls:
+            index = urls.index(CLIENT_EXTENSION_URL)
+            path = "extension[%s].valueReference" % index
+
+        expression = self.get_reference_expression(path)
+
+        # an existing client (Organization/<id>) or a bundle entry
+        sibling = fapi.resolve_reference(self.resource, self.resource.client,
+                                         "Organization", expression)
+        if not fapi.is_fhir_resource(sibling):
+            return sibling
         obj = fapi.find_object_for(sibling, default=None)
         if obj:
             return obj

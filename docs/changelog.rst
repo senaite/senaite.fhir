@@ -4,6 +4,8 @@ Changelog
 1.0.0 (Unreleased)
 ------------------
 
+- #56 Resolve urn:uuid references within the bundle
+- #55 Stop mapping bundle entry fullUrl placeholders to SENAITE objects
 - #54 Resolve Clients by ClientID only, rejecting duplicates and empty names
 - #52 Fix the creation of a Client from an Organization
 - #49 Preserve request order in transaction response bundles
