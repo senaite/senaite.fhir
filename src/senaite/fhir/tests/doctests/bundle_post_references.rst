@@ -7,10 +7,15 @@ form. The `{Resource}/{id}` form points to a resource that already exists in
 SENAITE instead, by the FHIR id SENAITE returned in the `fullUrl` of the
 bundle response.
 
-Neither form falls back to the other: a `urn:uuid:<id>` reference that does
-not match the `fullUrl` of an entry of the same bundle, or a
-`{Resource}/{id}` reference to a resource that does not exist in SENAITE,
-rejects the whole bundle with 422 Unprocessable Entity.
+Neither form falls back to the other. Any of the following rejects the whole
+bundle with 422 Unprocessable Entity:
+
+- a `urn:uuid:<id>` reference that does not match the `fullUrl` of an entry
+  of the expected type in the same bundle
+- a `{Resource}/{id}` reference to a resource that does not exist in SENAITE
+- a `{Resource}/{id}` reference to a resource that an entry of the same bundle
+  resolves to as well, as it is ambiguous
+- a `{Resource}/{id}` reference to a Specimen, which is always created new
 
 Running this test from the buildout directory:
 
@@ -191,44 +196,52 @@ No Patient was created, but a new sample, for the existing Client and Contact:
 
 
 Rejection: a urn:uuid reference with no matching entry
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    >>> def assert_rejected(bundle, expression):
+The issue points to the reference element of the ServiceRequest, by the
+position of its entry in the bundle:
+
+    >>> def sr_expression(path):
+    ...     return "Bundle.entry[4].resource.%s.reference" % path
+
+    >>> def get_rejection(bundle):
     ...     before = counts()
     ...     status, outcome = post_bundle(bundle)
-    ...     issue = outcome["issue"][0]
     ...     assert status == "422 Unprocessable Entity", status
-    ...     assert issue["code"] == "invalid", issue
-    ...     assert issue["expression"] == [expression], issue
     ...     assert counts() == before, "Something was created"
-    ...     return issue["details"]["text"]
+    ...     return outcome["issue"][0]
+
+    >>> def show(issue):
+    ...     codes = [c["code"] for c in issue["details"].get("coding", [])]
+    ...     print("%s %s %s" % (issue["code"], codes, issue["expression"][0]))
+    ...     print(issue["details"]["text"])
 
 A `urn:uuid:` reference that does not match the `fullUrl` of any entry:
 
     >>> unknown = "urn:uuid:0f0f0f0f-1111-4222-8333-444455556666"
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["subject"]["reference"] = unknown
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no entry with fullUrl 'urn:uuid:0f0f0f0f-...' in the Bundle
+    >>> show(get_rejection(bundle))
+    invalid [] Bundle.entry[4].resource.subject.reference
+    No entry with fullUrl 'urn:uuid:0f0f0f0f-1111-4222-8333-444455556666' in this Bundle
 
 The same applies to the other references:
 
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["requester"]["reference"] = unknown
-    >>> print(assert_rejected(bundle, "ServiceRequest.requester"))
-    ServiceRequest.requester: no entry with fullUrl ... in the Bundle
+    >>> get_rejection(bundle)["expression"] == [sr_expression("requester")]
+    True
 
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["specimen"][0]["reference"] = unknown
-    >>> print(assert_rejected(bundle, "ServiceRequest.specimen"))
-    ServiceRequest.specimen: no entry with fullUrl ... in the Bundle
+    >>> get_rejection(bundle)["expression"] == [sr_expression("specimen")]
+    True
 
     >>> bundle = json.loads(raw)
     >>> get_client_reference(bundle)["reference"] = unknown
-    >>> expression = ("ServiceRequest.extension('https://fhir.senaite.org/"
-    ...               "StructureDefinition/SenaiteClient').value")
-    >>> print(assert_rejected(bundle, expression))
-    ServiceRequest.extension(...).value: no entry with fullUrl ... in the Bundle
+    >>> get_rejection(bundle)["expression"] == [
+    ...     sr_expression("extension[0].valueReference")]
+    True
 
 A `urn:uuid:` reference is never resolved to an existing resource, even when
 it carries the FHIR id of one:
@@ -236,8 +249,8 @@ it carries the FHIR id of one:
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["subject"]["reference"] = (
     ...     "urn:uuid:" + patient_url.split("/")[-1])
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no entry with fullUrl ... in the Bundle
+    >>> print(get_rejection(bundle)["details"]["text"])
+    No entry with fullUrl ... in this Bundle
 
 Nor is an entry matched by its id only, regardless of the form of its
 `fullUrl`:
@@ -246,8 +259,8 @@ Nor is an entry matched by its id only, regardless of the form of its
     >>> patient_entry = get_entry(bundle, "Patient")
     >>> placeholder = patient_entry["fullUrl"].split(":")[-1]
     >>> patient_entry["fullUrl"] = "Patient/" + placeholder
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no entry with fullUrl ... in the Bundle
+    >>> print(get_rejection(bundle)["details"]["text"])
+    No entry with fullUrl ... in this Bundle
 
 
 Rejection: a urn:uuid reference to an entry of another type
@@ -256,15 +269,15 @@ Rejection: a urn:uuid reference to an entry of another type
     >>> bundle = json.loads(raw)
     >>> sr = get_service_request(bundle)
     >>> sr["subject"]["reference"] = sr["requester"]["reference"]
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: the entry with fullUrl '...' is a 'Practitioner', not a Patient
+    >>> print(get_rejection(bundle)["details"]["text"])
+    The entry with fullUrl '...' is a 'Practitioner', not a Patient
 
 The same applies to an entry with no valid type, which is not processed:
 
     >>> bundle = json.loads(raw)
     >>> get_entry(bundle, "Practitioner")["resource"]["resourceType"] = ""
-    >>> print(assert_rejected(bundle, "ServiceRequest.requester"))
-    ServiceRequest.requester: the entry with fullUrl '...' is a '', not a Practitioner
+    >>> print(get_rejection(bundle)["details"]["text"])
+    The entry with fullUrl '...' is a '', not a Practitioner
 
 
 Rejection: a reference to a resource that does not exist
@@ -277,21 +290,49 @@ the placeholder of an entry is not valid in this form:
     >>> sr = get_service_request(bundle)
     >>> placeholder = sr["subject"]["reference"].split(":")[-1]
     >>> sr["subject"]["reference"] = "Patient/" + placeholder
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no Patient found for 'Patient/...'
+    >>> show(get_rejection(bundle))
+    not-found [u'MSG_NO_EXIST'] Bundle.entry[4].resource.subject.reference
+    Patient/... does not exist in SENAITE. Verify the logical ID or include the Patient resource in this Bundle using urn:uuid:... reference.
 
 Nor is a resource of another type:
 
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["subject"]["reference"] = practitioner_url
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no Patient found for 'Practitioner/...'
+    >>> print(get_rejection(bundle)["code"])
+    not-found
 
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["subject"]["reference"] = (
     ...     "Patient/" + practitioner_url.split("/")[-1])
-    >>> print(assert_rejected(bundle, "ServiceRequest.subject"))
-    ServiceRequest.subject: no Patient found for 'Patient/...'
+    >>> print(get_rejection(bundle)["code"])
+    not-found
+
+
+Rejection: an ambiguous reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The fixture's Patient entry resolves to the Patient created by the first post
+(by its business identifiers), so referring to that same Patient by its FHIR
+id is ambiguous:
+
+    >>> bundle = json.loads(raw)
+    >>> get_service_request(bundle)["subject"]["reference"] = patient_url
+    >>> show(get_rejection(bundle))
+    conflict [u'MSG_LOCAL_FAIL'] Bundle.entry[4].resource.subject.reference
+    Reference 'Patient/...' is ambiguous: Patient with this ID exists in SENAITE, but a Patient entry is also present in this Bundle. Either remove the Patient from the Bundle and use the existing resource, or remove the reference and use the urn:uuid from the Bundle entry.
+
+The same applies to the Organization and the Practitioner:
+
+    >>> bundle = json.loads(raw)
+    >>> get_client_reference(bundle)["reference"] = organization_url
+    >>> print(get_rejection(bundle)["code"])
+    conflict
+
+    >>> bundle = json.loads(raw)
+    >>> get_service_request(bundle)["requester"]["reference"] = (
+    ...     practitioner_url)
+    >>> print(get_rejection(bundle)["code"])
+    conflict
 
 
 Rejection: a reference to an existing Specimen
@@ -302,5 +343,6 @@ ServiceRequest can only refer to a new one, from the same bundle:
 
     >>> bundle = json.loads(raw)
     >>> get_service_request(bundle)["specimen"][0]["reference"] = specimen_url
-    >>> print(assert_rejected(bundle, "ServiceRequest.specimen"))
-    ServiceRequest.specimen: no Specimen found for 'Specimen/...'
+    >>> show(get_rejection(bundle))
+    business-rule [u'MSG_LOCAL_FAIL'] Bundle.entry[4].resource.specimen.reference
+    Specimen references must not use ResourceType/{id} format. Specimen is always created new. Reference the Specimen entry in this Bundle using urn:uuid:... instead.
