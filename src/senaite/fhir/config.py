@@ -11,6 +11,11 @@ CLIENT_EXTENSION_URL = (
 # prefix of the references to the entries of the same bundle, by fullUrl
 URN_UUID_PREFIX = "urn:uuid:"
 
+# system of the codes for the details of an OperationOutcome issue
+OPERATION_OUTCOME_SYSTEM = (
+    "http://terminology.hl7.org/CodeSystem/operation-outcome"
+)
+
 # Ids of the NamingSystems of the resources' identifiers: the internal one
 # (`use="usual"`), assigned by SENAITE, and the external one
 # (`use="secondary"`), assigned by the API consumer.
