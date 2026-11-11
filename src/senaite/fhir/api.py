@@ -23,10 +23,14 @@ from senaite.fhir.config import SECONDARY_RESOURCES_KEY
 from senaite.fhir.config import SERVER_OWNED_ELEMENTS
 from senaite.fhir.config import SYSTEM_CODES
 from senaite.fhir.config import URN_UUID_PREFIX
+from senaite.fhir.exceptions import AmbiguousReferenceError
 from senaite.fhir.exceptions import FHIRAPIError
 from senaite.fhir.exceptions import IdentifierValidationError
+from senaite.fhir.exceptions import InvalidReferenceError
 from senaite.fhir.exceptions import LogicalIdValidationError
+from senaite.fhir.exceptions import ReferenceNotFoundError
 from senaite.fhir.exceptions import ReferenceValidationError
+from senaite.fhir.exceptions import ResourceValidationError
 from senaite.fhir.interfaces import IContentActionToFHIR
 from senaite.fhir.interfaces import IContentFinder
 from senaite.fhir.interfaces import IContentToFHIR
@@ -741,7 +745,8 @@ def resolve_reference(resource, reference, resource_type, expression,
     A `urn:uuid:<id>` reference points to the entry of the same bundle whose
     `fullUrl` is exactly the reference. A `{Resource}/{id}` reference points to
     an existing object, by the FHIR id SENAITE returned in the `fullUrl` of a
-    bundle response. Neither falls back to the other.
+    bundle response, and is ambiguous if an entry of the same bundle resolves
+    to that object as well. Neither falls back to the other.
 
     :param resource: the FHIR resource of a bundle entry holding the reference
     :param reference: the Reference data type to resolve
@@ -753,26 +758,32 @@ def resolve_reference(resource, reference, resource_type, expression,
     :raises ReferenceValidationError: if the reference cannot be resolved
     """
     value = (reference.reference if reference else None) or ""
+    if not value:
+        raise ResourceValidationError(
+            "%s is required" % expression, expression=[expression],
+            code="required")
 
     if value.startswith(URN_UUID_PREFIX):
         bundle = resource.get("_bundle")
         entry = bundle.get_raw_entry(value) if bundle else None
         if not entry:
             raise ReferenceValidationError(
-                "%s: no entry with fullUrl '%s' in the Bundle"
-                % (expression, value), expression)
+                "No entry with fullUrl '%s' in this Bundle" % value,
+                expression)
 
         entry_type = (entry.get("resource") or {}).get("resourceType") or ""
         if entry_type != resource_type:
             raise ReferenceValidationError(
-                "%s: the entry with fullUrl '%s' is a '%s', not a %s"
-                % (expression, value, entry_type, resource_type), expression)
+                "The entry with fullUrl '%s' is a '%s', not a %s"
+                % (value, entry_type, resource_type), expression)
 
         return bundle.get_entry_by_full_url(value)
 
+    if not allow_existing:
+        raise InvalidReferenceError(resource_type, expression)
+
     obj = None
-    prefix = "%s/" % resource_type
-    if allow_existing and value.startswith(prefix):
+    if value.startswith("%s/" % resource_type):
         uid = reference.UID()
         obj = get_object(uid, default=None) if uid else None
         portal_type = dict(FHIR_RESOURCE_TO_PORTAL_TYPE).get(resource_type)
@@ -780,9 +791,17 @@ def resolve_reference(resource, reference, resource_type, expression,
             obj = None
 
     if not obj:
-        raise ReferenceValidationError(
-            "%s: no %s found for '%s'" % (expression, resource_type, value),
-            expression)
+        raise ReferenceNotFoundError(value, resource_type, expression)
+
+    # ambiguous if an entry of the bundle is that same object too
+    bundle = resource.get("_bundle")
+    siblings = bundle.entry if bundle else []
+    for sibling in siblings:
+        if sibling.resourceType != resource_type:
+            continue
+        match = find_object_for(sibling, default=None)
+        if match and api.get_uid(match) == api.get_uid(obj):
+            raise AmbiguousReferenceError(value, resource_type, expression)
 
     return obj
 
