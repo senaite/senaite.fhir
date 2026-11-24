@@ -15,3 +15,11 @@ def setup_contact_behavior(tool):
     setup_behaviors(portal)
     setup_catalogs(portal)
     logger.info("Setup Contact behavior [DONE]")
+
+
+def add_sample_group_index(tool):
+    """Install the Sample Client Order Number index used by requisitions
+    """
+    logger.info("Adding the FHIR sample group index ...")
+    setup_catalogs(api.get_portal())
+    logger.info("Adding the FHIR sample group index [DONE]")

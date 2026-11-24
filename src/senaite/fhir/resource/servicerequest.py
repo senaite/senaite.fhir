@@ -88,6 +88,18 @@ class ServiceRequestResource(FHIRResource):
         return CodeableReference(element) if element else None
 
     @property
+    def requisition(self):
+        """Identifier that groups related ServiceRequests.
+
+        An ordering system can use one requisition for several requests that
+        need separate specimens, for example a blood and a urine specimen.
+        SENAITE stores its value as the sample's Client Order Number.
+        https://hl7.org/fhir/R5/servicerequest-definitions.html#ServiceRequest.requisition
+        """
+        element = self.get("requisition")
+        return Identifier(element) if isinstance(element, dict) else None
+
+    @property
     def orderDetail(self):
         """Individual test codes that make up the ordered panel.
         https://fhir.senaite.org/StructureDefinition-SenaiteServiceRequest-definitions.html#ServiceRequest.orderDetail

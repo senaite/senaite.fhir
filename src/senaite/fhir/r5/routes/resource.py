@@ -7,6 +7,7 @@ from bika.lims.interfaces import IAnalysisRequest
 from bika.lims.workflow import doActionFor as do_action_for
 from senaite.core.api import dtime
 from senaite.core.api import workflow as wapi
+from senaite.core.catalog import SAMPLE_CATALOG
 from senaite.fhir import api as fapi
 from senaite.fhir import conditions
 from senaite.fhir import logger
@@ -16,6 +17,8 @@ from senaite.fhir.config import INCLUDE_REFERENCE_FIELDS
 from senaite.fhir.config import INSTRUMENT_SERVICE_REQUEST_STATUSES
 from senaite.fhir.converter import to_fhir_datetime
 from senaite.fhir.converter import to_fhir_profile_url
+from senaite.fhir.converter.analysisrequest import ResourceToAnalysisRequest
+from senaite.fhir.exceptions import ServiceRequestValidationError
 from senaite.fhir.finder.sampletype import SampleTypeFinder
 from senaite.fhir.interfaces import IBundleResource
 from senaite.fhir.r5 import add_route
@@ -37,6 +40,14 @@ ENDPOINT_REVOKE = "%s.revoke" % ENDPOINT
 RESOURCE_TYPE_TO_CONTENT = (
     ("ServiceRequest", IAnalysisRequest),
 )
+
+CLIENT_EXTENSION_URL = (
+    "https://fhir.senaite.org/StructureDefinition/SenaiteClient"
+)
+LOCAL_FAILURE_CODING = [{
+    "system": "http://terminology.hl7.org/CodeSystem/operation-outcome",
+    "code": "MSG_LOCAL_FAIL",
+}]
 
 
 # /<resource_type>
@@ -135,6 +146,13 @@ def post(context, request, resource_type=None):
                 # discards the submitted body entirely (no fapi.update) --
                 # only the FHIR id used by this bundle is linked to it.
                 obj = conditions.find_by_if_none_exist(resource, if_none_exist)  # noqa: E501
+            else:
+                obj = find_object_for(resource)
+
+            if resource.resourceType == "ServiceRequest":
+                validate_sample_group(resource, obj)
+
+            if if_none_exist:
                 if obj:
                     fapi.link_fhir_resource(obj, resource)
                     status = "200 OK"
@@ -146,13 +164,12 @@ def post(context, request, resource_type=None):
                     obj = fapi.create(resource)
                     status = "201 Created"
             else:
-                obj = find_object_for(resource)
-                if not obj:
-                    obj = fapi.create(resource)
-                    status = "201 Created"
-                else:
+                if obj:
                     obj = fapi.update(obj, resource)
                     status = "200 OK"
+                else:
+                    obj = fapi.create(resource)
+                    status = "201 Created"
         except ResourceValidationError as e:
             return get_validation_outcome(request, e)
         except Exception:
@@ -276,6 +293,77 @@ def get_validation_outcome(request, error):
         "expression": error.expression,
     }
     return OperationOutcome({"issue": [issue]})
+
+
+def validate_sample_group(resource, current_sample):
+    """Ensure a requisition only groups samples from one Patient and Client.
+    """
+    converter = ResourceToAnalysisRequest(resource)
+    requisition = converter.get_requisition()
+    if not requisition:
+        return
+
+    current_uid = api.get_uid(current_sample) if current_sample else None
+    samples = [
+        brain for brain in get_sample_group_samples(requisition)
+        if getattr(brain, "UID", None) != current_uid
+    ]
+
+    patient = converter.get_patient()
+    patient_mrn = patient.getMRN()
+    if any(getattr(brain, "getMedicalRecordNumberValue", None) != patient_mrn
+           for brain in samples):
+        raise sample_group_error(
+            requisition, "Patient",
+            get_group_expression(resource, "subject"))
+
+    client_uid = api.get_uid(converter.get_client())
+    if any(getattr(brain, "getClientUID", None) != client_uid
+           for brain in samples):
+        raise sample_group_error(
+            requisition, "Client", get_client_group_expression(resource))
+
+
+def get_sample_group_samples(requisition):
+    """Return every Sample whose Client Order Number
+    """
+    catalog = api.get_tool(SAMPLE_CATALOG)
+    return catalog.unrestrictedSearchResults({
+        "portal_type": "AnalysisRequest",
+        "getClientOrderNumber": requisition,
+    })
+
+
+def sample_group_error(requisition, identity, expression):
+    """Return the specified validation error for a sample-group mismatch."""
+    message = (
+        "Sample Group ID '{}' is already used for a different {}. All "
+        "requests that share a Sample Group ID must be for the same Patient "
+        "and the same Client. Check the {} reference, or use a different "
+        "Sample Group ID. No resources were created."
+    ).format(requisition, identity, identity)
+
+    return ServiceRequestValidationError(
+        message, expression=[expression], coding=LOCAL_FAILURE_CODING)
+
+
+def get_group_expression(resource, field):
+    """Return an entry-specific FHIRPath expression when available."""
+    index = get_request_index(resource)
+    prefix = "ServiceRequest"
+    if index is not None:
+        prefix = "Bundle.entry[{}].resource".format(index)
+    return "{}.{}".format(prefix, field)
+
+
+def get_client_group_expression(resource):
+    """Point a Client group error at the SenaiteClient extension value."""
+    extensions = resource.get("extension") or []
+    for index, extension in enumerate(extensions):
+        if extension.get("url") == CLIENT_EXTENSION_URL:
+            return get_group_expression(
+                resource, "extension[{}].valueReference".format(index))
+    return get_group_expression(resource, "extension")
 
 
 def process_bundle_specimen(sr_resource, ar_obj, ar_status, ar_modified):
@@ -664,7 +752,7 @@ def get_service_request_bundle(_context, request):
         matches.append((dtime.to_dt(sr["authoredOn"]), sr))
 
     # sort descending by authoredOn
-    matches.sort(key=lambda match: match[0], reverse=True)
+    # matches.sort(key=lambda match: match[0], reverse=True)
 
     total_match = len(matches)
     page = matches[offset:offset + count] if count > 0 else []
