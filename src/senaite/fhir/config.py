@@ -20,6 +20,7 @@ PATIENT_MRN_SYSTEM = "patient-mrn"
 PRACTITIONER_EXTERNAL_ID_SYSTEM = "practitioner-external-id"
 PRACTITIONER_ID_SYSTEM = "practitioner-id"
 SAMPLE_ID_SYSTEM = "sample-id"
+SAMPLE_GROUP_ID_SYSTEM = "sample-group-id"
 
 # Key of the content dict that IFHIRToContent converters use to hand over the
 # secondary FHIR resources of the object being created or updated
