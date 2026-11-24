@@ -752,7 +752,7 @@ def get_service_request_bundle(_context, request):
         matches.append((dtime.to_dt(sr["authoredOn"]), sr))
 
     # sort descending by authoredOn
-    # matches.sort(key=lambda match: match[0], reverse=True)
+    matches.sort(key=lambda match: match[0], reverse=True)
 
     total_match = len(matches)
     page = matches[offset:offset + count] if count > 0 else []
