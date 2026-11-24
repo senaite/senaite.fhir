@@ -8,6 +8,7 @@ from senaite.fhir import api as fapi
 from senaite.fhir.config import CLIENT_SAMPLE_ID_SYSTEM
 from senaite.fhir.config import DEFAULT_REPORT_PROFILE_CODE
 from senaite.fhir.config import DIAGNOSTIC_REPORT_STATUSES
+from senaite.fhir.config import SAMPLE_GROUP_ID_SYSTEM
 from senaite.fhir.config import SAMPLE_ID_SYSTEM
 from senaite.fhir.converter import to_fhir_identifier as to_fhir_id
 from senaite.fhir.converter import to_fhir_datetime
@@ -55,53 +56,75 @@ class ResultsReportToResource(object):
     def get_sample(self):
         return self.report.getSample()
 
+    def get_samples(self):
+        """Returns every sample covered by the report
+        """
+        samples = list(self.report.getContainedSamples() or [])
+        sample = self.get_sample()
+        if sample not in samples:
+            samples.insert(0, sample)
+        return samples
+
     def get_last_updated(self):
         sample = self.get_sample()
         modified = api.get_modification_date(sample)
         return to_fhir_datetime(modified)
 
     def get_status(self):
+        mapping = dict(DIAGNOSTIC_REPORT_STATUSES)
         sample = self.get_sample()
         status = api.get_review_status(sample)
-        mapping = dict(DIAGNOSTIC_REPORT_STATUSES)
-        fhir_status = mapping.get(status)
-        if fhir_status:
-            return fhir_status
-        # return default (None as the key)
-        return mapping.get(None)
+        fhir_status = mapping.get(status) or mapping.get(None)
+        published = (
+            api.get_review_status(sample) == "published"
+            for sample in self.get_samples()
+        )
+        if fhir_status == "final" and not all(published):
+            return "preliminary"
+        return fhir_status
 
     def get_identifier(self):
-        sample = self.get_sample()
-        identifiers = [
-            to_fhir_id(SAMPLE_ID_SYSTEM, sample.getId(), use="usual"),
-        ]
-        client_sample_id = sample.getClientSampleID()
-        if client_sample_id:
+        identifiers = []
+        group_ids = set()
+        for sample in self.get_samples():
             identifiers.append(
-                to_fhir_id(
-                    CLIENT_SAMPLE_ID_SYSTEM,
-                    client_sample_id,
-                    use="secondary")
+                to_fhir_id(SAMPLE_ID_SYSTEM, sample.getId(), use="usual"),
             )
+            client_sample_id = sample.getClientSampleID()
+            if client_sample_id:
+                identifiers.append(
+                    to_fhir_id(
+                        CLIENT_SAMPLE_ID_SYSTEM,
+                        client_sample_id,
+                        use="secondary")
+                )
+
+            group_id = sample.getClientOrderNumber()
+            if group_id and group_id not in group_ids:
+                identifiers.append(
+                    to_fhir_id(SAMPLE_GROUP_ID_SYSTEM, group_id)
+                )
+                group_ids.add(group_id)
         return identifiers
 
     def get_based_on(self):
-        sample = self.get_sample()
-        if not fapi.is_fhir_content(sample):
-            # not based on a FHIR resource, was generated internally
-            return []
+        references = []
+        for sample in self.get_samples():
+            if not fapi.is_fhir_content(sample):
+                continue
 
-        uids = fapi.get_fhir_uids(sample)
-        service_request_uid = uids.get("ServiceRequest")
+            service_request_uid = fapi.get_fhir_uids(sample).get(
+                "ServiceRequest")
+            if not service_request_uid:
+                continue
 
-        if not service_request_uid:
-            return []
+            references.append({
+                "type": "ServiceRequest",
+                "reference": "ServiceRequest/{}".format(
+                    fapi.get_uuid(service_request_uid)),
+            })
 
-        return [{
-            "type": "ServiceRequest",
-            "reference": "ServiceRequest/{}".format(
-                fapi.get_uuid(service_request_uid)),
-        }]
+        return references
 
     def get_code(self):
         sample = self.get_sample()
@@ -135,15 +158,16 @@ class ResultsReportToResource(object):
         }
 
     def get_result(self):
-        sample = self.get_sample()
         references = []
-        for analysis in sample.getAnalyses(full_objects=True):
-            if not fapi.is_reportable(analysis):
-                continue
-            references.append({
-                "reference": "Observation/{}".format(fapi.get_uuid(analysis)),
-                "display": api.get_title(analysis),
-            })
+        for sample in self.get_samples():
+            for analysis in sample.getAnalyses(full_objects=True):
+                if not fapi.is_reportable(analysis):
+                    continue
+                references.append({
+                    "reference": "Observation/{}".format(
+                        fapi.get_uuid(analysis)),
+                    "display": api.get_title(analysis),
+                })
         return references
 
     def get_patient(self):

@@ -511,6 +511,7 @@ def get_diagnostic_report_bundle(_context, request):
 
     entries = []
     total_match = 0
+    report_uids = set()
 
     for brain in brains:
         sample = api.get_object(brain, default=None)
@@ -522,10 +523,15 @@ def get_diagnostic_report_bundle(_context, request):
 
         # Get the most recent report for this sample
         last_report = reports[-1]
+        report_uid = api.get_uid(last_report)
+        if report_uid in report_uids:
+            continue
+
         dr = fapi.to_fhir_resource(last_report, default=None)
         if not dr:
             continue
 
+        report_uids.add(report_uid)
         total_match += 1
 
         dr_dict = dict(dr)

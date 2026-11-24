@@ -15,6 +15,7 @@ Test Setup
 
 Needed imports:
 
+    >>> import base64
     >>> import json
     >>> import re
     >>> import uuid
@@ -26,6 +27,7 @@ Needed imports:
     >>> from bika.lims import api
     >>> from bika.lims.utils.analysisrequest import create_analysisrequest
     >>> from bika.lims.workflow import doActionFor as do_action_for
+    >>> from senaite.fhir import api as fapi
     >>> from zope.component import getUtility
 
 Variables:
@@ -246,6 +248,142 @@ attached to the report:
     u'application/pdf'
     >>> presented_form[0]["title"]
     u'HH-report.pdf'
+    >>> base64.b64decode(presented_form[0]["data"])
+    '%PDF-1.4 fake diagnostic report'
+
+
+Multi-sample ResultsReport
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A ResultsReport can cover more than its primary sample. Its one FHIR
+``DiagnosticReport`` includes each covered sample's identifiers, FHIR order,
+and reportable results, while still carrying the one PDF. Create two grouped
+samples and leave the second one verified initially:
+
+    >>> group_id = "GROUP-20261124-001"
+    >>> values_multi_primary = dict(values, ClientSampleID="EXT-MULTI-1",
+    ...                             ClientOrderNumber=group_id)
+    >>> values_multi_secondary = dict(values, ClientSampleID="EXT-MULTI-2",
+    ...                               ClientOrderNumber=group_id)
+    >>> sample_multi_primary = create_analysisrequest(
+    ...     client, request, values_multi_primary, [Cu.UID()])
+    >>> sample_multi_secondary = create_analysisrequest(
+    ...     client, request, values_multi_secondary, [Cu.UID()])
+    >>> for multi_sample in [sample_multi_primary, sample_multi_secondary]:
+    ...     _ = do_action_for(multi_sample, "receive")
+    ...     multi_analysis = multi_sample.getAnalyses(full_objects=True)[0]
+    ...     multi_analysis.setResult(13)
+    ...     _ = do_action_for(multi_analysis, "submit")
+    ...     _ = do_action_for(multi_analysis, "verify")
+    >>> do_action_for(sample_multi_primary, "publish")[0]
+    True
+    >>> api.get_review_status(sample_multi_primary)
+    'published'
+    >>> api.get_review_status(sample_multi_secondary)
+    'verified'
+
+Link a FHIR ``ServiceRequest`` to each sample, as occurs when they were
+created from FHIR orders:
+
+    >>> for multi_sample in [sample_multi_primary, sample_multi_secondary]:
+    ...     fapi.link_fhir_resource(
+    ...         multi_sample,
+    ...         fapi.to_fhir_resource({
+    ...             "resourceType": "ServiceRequest",
+    ...             "id": str(fapi.get_uuid(multi_sample)),
+    ...         }))
+
+Create the one report with the primary sample and both covered samples:
+
+    >>> multi_report = api.create(
+    ...     sample_multi_primary, "ResultsReport",
+    ...     sample=sample_multi_primary.UID(),
+    ... )
+    >>> multi_report.setContainedSamples([
+    ...     sample_multi_primary.UID(), sample_multi_secondary.UID()])
+    >>> multi_report.setPdf({
+    ...     "data": b"%PDF-1.4 fake multi-sample diagnostic report",
+    ...     "filename": u"HH-multi-report.pdf",
+    ...     "contentType": "application/pdf",
+    ... })
+    >>> multi_report_uid = api.get_uid(multi_report)
+    >>> transaction.commit()
+    >>> browser.open("{}/DiagnosticReport/{}".format(
+    ...     fhir_url, multi_report_uid))
+    >>> multi_resource = json.loads(browser.contents)
+
+Every covered sample supplies its internal and client sample identifiers;
+their shared Client Order Number supplies one Sample Group ID:
+
+    >>> sample_values = set(identifier["value"]
+    ...                     for identifier in multi_resource["identifier"]
+    ...                     if identifier["system"] == (
+    ...                         "https://fhir.senaite.org/NamingSystem/sample-id"))
+    >>> sample_values == set([sample_multi_primary.getId(),
+    ...                       sample_multi_secondary.getId()])
+    True
+    >>> client_sample_values = set(identifier["value"]
+    ...                            for identifier in multi_resource["identifier"]
+    ...                            if identifier["system"] == (
+    ...                                "https://fhir.senaite.org/NamingSystem/"
+    ...                                "client-sample-id"))
+    >>> client_sample_values == set(["EXT-MULTI-1", "EXT-MULTI-2"])
+    True
+    >>> group_identifiers = [identifier for identifier
+    ...                      in multi_resource["identifier"]
+    ...                      if identifier["system"] == (
+    ...                          "https://fhir.senaite.org/NamingSystem/"
+    ...                          "sample-group-id")]
+    >>> group_identifiers
+    [{u'system': u'https://fhir.senaite.org/NamingSystem/sample-group-id', u'value': u'GROUP-20261124-001'}]
+
+``basedOn`` references both ServiceRequests, and ``result`` references both
+reportable Observations:
+
+    >>> expected_based_on = set(
+    ...     "ServiceRequest/{}".format(fapi.get_uuid(multi_sample))
+    ...     for multi_sample in [sample_multi_primary, sample_multi_secondary])
+    >>> set(reference["reference"]
+    ...     for reference in multi_resource["basedOn"]) == expected_based_on
+    True
+    >>> expected_results = set(
+    ...     "Observation/{}".format(fapi.get_uuid(multi_sample.getAnalyses(
+    ...         full_objects=True)[0]))
+    ...     for multi_sample in [sample_multi_primary, sample_multi_secondary])
+    >>> set(reference["reference"]
+    ...     for reference in multi_resource["result"]) == expected_results
+    True
+
+The one ``presentedForm`` attachment contains the base64-encoded PDF of the
+multi-sample report:
+
+    >>> multi_presented_form = multi_resource["presentedForm"]
+    >>> len(multi_presented_form)
+    1
+    >>> base64.b64decode(multi_presented_form[0]["data"])
+    '%PDF-1.4 fake multi-sample diagnostic report'
+
+The DiagnosticReport remains preliminary until every covered sample has been
+published, then becomes final:
+
+    >>> multi_resource["status"]
+    u'preliminary'
+    >>> do_action_for(sample_multi_secondary, "publish")[0]
+    True
+    >>> transaction.commit()
+    >>> browser.open("{}/DiagnosticReport/{}".format(
+    ...     fhir_url, multi_report_uid))
+    >>> json.loads(browser.contents)["status"]
+    u'final'
+
+The DiagnosticReport search exposes that multi-sample ResultsReport only
+once, although both samples point to it:
+
+    >>> browser.open("{}/DiagnosticReport?_summary=true".format(fhir_url))
+    >>> search_bundle = json.loads(browser.contents)
+    >>> sum(entry["resource"]["id"] == str(fapi.get_uuid(multi_report))
+    ...     for entry in search_bundle["entry"])
+    1
 
 
 Fetch by UID Alone

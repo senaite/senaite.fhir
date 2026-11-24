@@ -17,7 +17,7 @@ class DiagnosticReportResource(FHIRResource):
     __cardinality = (
         ("id", "1..1"),
         ("identifier", "0..*"),
-        ("basedOn", "0..1"),
+        ("basedOn", "0..*"),
         ("status", "1..1"),
         ("code", "1..1"),
         ("subject", "0..1"),
