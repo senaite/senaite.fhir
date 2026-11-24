@@ -193,6 +193,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
         profile = self.get_profile()
         services = self.get_services()
         priority = self.get_priority()
+        requisition = self.get_requisition()
 
         data = {
             "portal_type": "AnalysisRequest",
@@ -209,6 +210,7 @@ class ResourceToAnalysisRequest(ResourceToContent):
             "Specification": specs,
             "Analyses": services,
             "ClientSampleID": client_sample_id,
+            "ClientOrderNumber": requisition,
         }
 
         # update with patient information
@@ -385,6 +387,13 @@ class ResourceToAnalysisRequest(ResourceToContent):
             return None
         external = specimen.get_external_id()
         return external.value if external else None
+
+    @memoize
+    def get_requisition(self):
+        """Returns the optional ServiceRequest requisition value
+        """
+        requisition = self.resource.requisition
+        return requisition.value if requisition else None
 
     @memoize
     def get_specifications(self):

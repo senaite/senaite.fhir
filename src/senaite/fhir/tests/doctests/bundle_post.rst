@@ -225,6 +225,142 @@ after the POST -- so we read the stored field values directly:
     'm'
 
 
+ServiceRequest requisitions group separate Samples
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``ServiceRequest.requisition`` is optional. Without it, the request above
+created an independent Sample and did not populate its Client Order Number::
+
+    >>> not sample.getClientOrderNumber()
+    True
+
+When the ordering system sends a requisition, its Identifier value is stored
+as the Sample's Client Order Number. A later ServiceRequest may use the same
+requisition, including in a separate transaction, to associate another
+Specimen with that order::
+
+    >>> import copy
+    >>> group_id = "ORD-20260408-0173"
+    >>> group_system = (
+    ...     "https://fhir.senaite.org/NamingSystem/sample-group-id")
+    >>> service_request = [e["resource"] for e in bundle["entry"]
+    ...                    if e["resource"]["resourceType"] == "ServiceRequest"][0]
+    >>> service_request["requisition"] = {
+    ...     "system": group_system,
+    ...     "value": group_id,
+    ... }
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(bundle),
+    ...              content_type="application/json")
+    >>> portal._p_jar.sync()
+    >>> sample.getClientOrderNumber() == group_id
+    True
+
+Give a second ServiceRequest and Specimen new identities, but retain the same
+Patient, Client and requisition. This creates a second Sample in the group::
+
+    >>> grouped = copy.deepcopy(bundle)
+    >>> second_specimen_id = "11111111-1111-4111-8111-111111111111"
+    >>> second_request_id = "22222222-2222-4222-8222-222222222222"
+    >>> for entry in grouped["entry"]:
+    ...     resource = entry["resource"]
+    ...     if resource["resourceType"] == "Specimen":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(second_specimen_id)
+    ...         resource["identifier"][0]["value"] = "EXT-LIVER-002"
+    ...     elif resource["resourceType"] == "ServiceRequest":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(second_request_id)
+    ...         resource["specimen"][0]["reference"] = (
+    ...             "Specimen/{}".format(second_specimen_id))
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(grouped),
+    ...              content_type="application/json")
+    >>> response = json.loads(browser.contents)
+    >>> [entry["response"]["status"] for entry in response["entry"]
+    ...  if entry["fullUrl"].startswith("ServiceRequest/")]
+    [u'201 Created']
+    >>> portal._p_jar.sync()
+    >>> grouped_samples = [item for item in client.objectValues("AnalysisRequest")
+    ...                    if item.getClientOrderNumber() == group_id]
+    >>> len(grouped_samples)
+    2
+
+All Samples that share a group must belong to the same Patient and Client.
+Changing the Patient makes the transaction fail. The error points to the
+offending ServiceRequest subject, uses the FHIR local-failure coding, and
+rolls back the newly-created Patient and Sample::
+
+    >>> different_patient = copy.deepcopy(grouped)
+    >>> different_patient_id = "33333333-3333-4333-8333-333333333333"
+    >>> third_specimen_id = "44444444-4444-4444-8444-444444444444"
+    >>> third_request_id = "55555555-5555-4555-8555-555555555555"
+    >>> for entry in different_patient["entry"]:
+    ...     resource = entry["resource"]
+    ...     if resource["resourceType"] == "Patient":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(different_patient_id)
+    ...         resource["identifier"][0]["value"] = "MRN-OTHER-PATIENT"
+    ...     elif resource["resourceType"] == "Specimen":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(third_specimen_id)
+    ...     elif resource["resourceType"] == "ServiceRequest":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(third_request_id)
+    ...         resource["subject"]["reference"] = (
+    ...             "Patient/{}".format(different_patient_id))
+    ...         resource["specimen"][0]["reference"] = (
+    ...             "Specimen/{}".format(third_specimen_id))
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(different_patient),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> outcome = json.loads(browser.contents)
+    >>> outcome["issue"][0]["details"]["text"]
+    u"Sample Group ID 'ORD-20260408-0173' is already used for a different Patient. All requests that share a Sample Group ID must be for the same Patient and the same Client. Check the Patient reference, or use a different Sample Group ID. No resources were created."
+    >>> outcome["issue"][0]["details"]["coding"][0]["code"]
+    u'MSG_LOCAL_FAIL'
+    >>> outcome["issue"][0]["expression"]
+    [u'Bundle.entry[4].resource.subject']
+    >>> portal._p_jar.sync()
+    >>> len(grouped_samples) == 2
+    True
+    >>> len([obj for obj in portal.patients.objectValues()
+    ...      if api.get_portal_type(obj) == "Patient"])
+    1
+
+Changing the Client similarly fails, with the expression directed at the
+SenaiteClient extension and no Client or Sample left behind::
+
+    >>> different_client = copy.deepcopy(grouped)
+    >>> different_client_id = "66666666-6666-4666-8666-666666666666"
+    >>> fourth_specimen_id = "77777777-7777-4777-8777-777777777777"
+    >>> fourth_request_id = "88888888-8888-4888-8888-888888888888"
+    >>> for entry in different_client["entry"]:
+    ...     resource = entry["resource"]
+    ...     if resource["resourceType"] == "Organization":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(different_client_id)
+    ...         resource["identifier"][0]["value"] = "ORG-OTHER-MEL"
+    ...         resource["name"] = "Other Melbourne Hospital"
+    ...     elif resource["resourceType"] == "Specimen":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(fourth_specimen_id)
+    ...     elif resource["resourceType"] == "ServiceRequest":
+    ...         entry["fullUrl"] = "urn:uuid:{}".format(fourth_request_id)
+    ...         resource["extension"][0]["valueReference"]["reference"] = (
+    ...             "urn:uuid:{}".format(different_client_id))
+    ...         resource["specimen"][0]["reference"] = (
+    ...             "Specimen/{}".format(fourth_specimen_id))
+    >>> browser.post("{}/Bundle".format(fhir_url), json.dumps(different_client),
+    ...              content_type="application/json")
+    >>> browser.headers["Status"]
+    '400 Bad Request'
+    >>> outcome = json.loads(browser.contents)
+    >>> outcome["issue"][0]["details"]["text"]
+    u"Sample Group ID 'ORD-20260408-0173' is already used for a different Client. All requests that share a Sample Group ID must be for the same Patient and the same Client. Check the Client reference, or use a different Sample Group ID. No resources were created."
+    >>> outcome["issue"][0]["details"]["coding"][0]["code"]
+    u'MSG_LOCAL_FAIL'
+    >>> outcome["issue"][0]["expression"]
+    [u'Bundle.entry[4].resource.extension[0].valueReference']
+    >>> portal._p_jar.sync()
+    >>> len(client.objectValues("AnalysisRequest"))
+    2
+    >>> len(portal.clients.objectValues("Client"))
+    1
+
+
 External ID of the Contact
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -372,15 +508,18 @@ The same five resources are reported, now consistently as updated::
     >>> sorted(set(e["response"]["status"] for e in entries))
     [u'200 OK']
 
-No duplicates are created -- it is still the same Sample, now `stat`::
+No duplicate is created for the original request -- that Sample is now
+`stat`, while the other member of its requisition group remains intact::
 
     >>> portal._p_jar.sync()
     >>> samples = client.objectValues("AnalysisRequest")
     >>> len(samples)
+    2
+    >>> original = [item for item in samples
+    ...             if fapi.get_uid(item) == fapi.get_uid(sample)]
+    >>> len(original)
     1
-    >>> fapi.get_uid(samples[0]) == fapi.get_uid(sample)
-    True
-    >>> samples[0].getPriority()
+    >>> original[0].getPriority()
     '1'
 
 

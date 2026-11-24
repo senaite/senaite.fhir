@@ -2,6 +2,7 @@
 
 from bika.lims import api
 from senaite.core.catalog import CONTACT_CATALOG
+from senaite.core.catalog import SAMPLE_CATALOG
 from senaite.core.setuphandlers import setup_core_catalogs
 from senaite.core.setuphandlers import setup_other_catalogs
 from senaite.fhir import logger
@@ -16,6 +17,7 @@ CATALOGS = (
 # Tuples of (catalog, index_name, index_attribute, index_type)
 INDEXES = [
     (CONTACT_CATALOG, "fhir_external_id", "", "FieldIndex"),
+    (SAMPLE_CATALOG, "getClientOrderNumber", "", "FieldIndex"),
 ]
 
 # Tuples of (catalog, column_name)

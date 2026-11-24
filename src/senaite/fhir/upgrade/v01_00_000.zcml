@@ -4,6 +4,14 @@
     i18n_domain="senaite.fhir">
 
   <genericsetup:upgradeStep
+      title="Index Client Order Number for FHIR sample groups"
+      description="Add and populate the Sample catalog index used to validate ServiceRequest requisitions"
+      source="1001"
+      destination="1002"
+      handler=".v01_00_000.add_sample_group_index"
+      profile="senaite.fhir:default"/>
+
+  <genericsetup:upgradeStep
       title="Setup behavior for Contact"
       description="Setup behavior for Contact"
       source="1000"
